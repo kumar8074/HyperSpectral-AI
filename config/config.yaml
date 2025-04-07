@@ -1,0 +1,134 @@
+# config.yaml
+data_dir: "DATA"  # Path to the parent directory containing datasets
+
+datasets:
+  - name: "Botswana"
+    image_pattern: "Botswana.mat"
+    label_pattern: "Botswana_gt.mat"
+    image_key: "Botswana"  # Key for the image data in the .mat file
+    label_key: "Botswana_gt"  # Key for the label data in the .mat file
+    label_values: 
+      - "Undefined"
+      - "Water"
+      - "Hippo grass"
+      - "Floodplain grasses 1"
+      - "Floodplain grasses 2"
+      - "Reeds"
+      - "Riparian"
+      - "Firescar"
+      - "Island interior"
+      - "Acacia woodlands"
+      - "Acacia shrublands"
+      - "Acacia grasslands"
+      - "Short mopane"
+      - "Mixed mopane"
+      - "Exposed soils"
+    rgb_bands: [75, 33, 15]
+
+  - name: "IndianPines"
+    image_pattern: "Indian_pines_corrected.mat"
+    label_pattern: "Indian_pines_gt.mat"
+    image_key: "indian_pines_corrected"  # Key for the image data in the .mat file
+    label_key: "indian_pines_gt"  # Key for the label data in the .mat file
+    label_values: 
+      - "Undefined"
+      - "Alfalfa"
+      - "Corn-notill"
+      - "Corn-mintill"
+      - "Corn"
+      - "Grass-pasture"
+      - "Grass-trees"
+      - "Grass-pasture-mowed"
+      - "Hay-windrowed"
+      - "Oats"
+      - "Soybean-notill"
+      - "Soybean-mintill"
+      - "Soybean-clean"
+      - "Wheat"
+      - "Woods"
+      - "Buildings-Grass-Trees-Drives"
+      - "Stone-Steel-Towers"
+    rgb_bands: [43, 21, 11]  # AVIRIS sensor
+
+  - name: "KSC"
+    image_pattern: "KSC.mat"
+    label_pattern: "KSC_gt.mat"
+    image_key: "KSC"  # Key for the image data in the .mat file
+    label_key: "KSC_gt"  # Key for the label data in the .mat file
+    label_values: 
+      - "Undefined"
+      - "Scrub"
+      - "Willow swamp"
+      - "Cabbage palm hammock"
+      - "Cabbage palm/oak hammock"
+      - "Slash pine"
+      - "Oak/broadleaf hammock"
+      - "Hardwood swamp"
+      - "Graminoid marsh"
+      - "Spartina marsh"
+      - "Cattail marsh"
+      - "Salt marsh"
+      - "Mud flats"
+      - "Water"
+    rgb_bands: [43, 21, 11]  # AVIRIS sensor
+
+  - name: "PaviaC"
+    image_pattern: "Pavia.mat"
+    label_pattern: "Pavia_gt.mat"
+    image_key: "pavia"  # Key for the image data in the .mat file
+    label_key: "pavia_gt"  # Key for the label data in the .mat file
+    label_values: 
+      - "Undefined"
+      - "Water"
+      - "Trees"
+      - "Asphalt"
+      - "Self-Blocking Bricks"
+      - "Bitumen"
+      - "Tiles"
+      - "Shadows"
+      - "Meadows"
+      - "Bare Soil"
+    rgb_bands: [55, 41, 12]
+
+  - name: "PaviaU"
+    image_pattern: "PaviaU.mat"
+    label_pattern: "PaviaU_gt.mat"
+    image_key: "paviaU"  # Key for the image data in the .mat file
+    label_key: "paviaU_gt"  # Key for the label data in the .mat file
+    label_values: 
+      - "Undefined"
+      - "Asphalt"
+      - "Meadows"
+      - "Gravel"
+      - "Trees"
+      - "Painted metal sheets"
+      - "Bare Soil"
+      - "Bitumen"
+      - "Self-Blocking Bricks"
+      - "Shadows"
+    rgb_bands: [55, 41, 12]
+
+# Add more datasets here as needed
+
+# Transformation parameters
+transformation:
+  pca_components: 30  # Number of principal components to retain
+  patch_size: 7  # Size of patches to extract
+  test_size: 0.2  # Fraction of data to use for testing
+  batch_size: 32  # Batch size for TensorFlow datasets
+  preprocessor_file_path: "artifacts/preprocessor.pkl"
+
+# Model parameters
+model_trainer:
+  model: "cnn"  # Model to use
+  dataset: "Botswana" # Dataset to Use for training
+  epochs: 100  # Number of epochs to train
+  learning_rate: 0.001  # Learning rate for the optimizer
+  loss: "sparse_categorical_crossentropy"  # Loss function to use
+  optimizer: "adam"  # Optimizer to use
+  metrics: ["accuracy"] # Metrics to track during training
+  model_file_path: "artifacts/cnn_model.keras"  # Path to save the trained model
+
+
+
+
