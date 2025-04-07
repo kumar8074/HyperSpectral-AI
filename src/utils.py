@@ -101,3 +101,166 @@ def load_hyperspectral_data(data_dir, dataset_name, config):
     #print(f"Unique labels: {set(labels.flatten())}")
 
     return images, labels
+
+
+# Applies PCA to the hyperspectral data (only used for CNN Based Approach)
+def apply_pca(images, n_components):
+    """
+    Apply PCA to reduce the dimensionality of the hyperspectral data.
+    Args:
+        images (ndarray): Hyperspectral image data of shape (H, W, C).
+        n_components (int): Number of principal components to retain.
+    Returns:
+        reduced_images (ndarray): PCA-reduced hyperspectral image data of shape (H, W, n_components).
+    """
+    h, w, c = images.shape
+    n_components = min(n_components, c)  # Ensure PCA components don't exceed available features
+    reshaped_images = images.reshape(-1, c)  # Reshape to (H*W, C)
+    pca = PCA(n_components=n_components)
+    reduced_data = pca.fit_transform(reshaped_images)
+    reduced_images = reduced_data.reshape(h, w, n_components)  # Reshape back to (H, W, n_components)
+    return reduced_images
+
+
+# Extracts patches from Hyperspectral data (Utilized both for CNN and AutoEncoder based Approaches.)
+def extract_patches(images, labels=None, patch_size=7):
+    """
+    Extract patches from the hyperspectral image. Optionally align with valid labels if provided.
+
+    Args:
+        images (ndarray): Hyperspectral image data of shape (H, W, C).
+        labels (ndarray, optional): Ground-truth labels of shape (H, W). Defaults to None.
+        patch_size (int): Size of the patch to extract (e.g., 7 for 7x7 patches).
+
+    Returns:
+        patches (ndarray): Extracted patches of shape (num_patches, patch_size, patch_size, C).
+        valid_labels (ndarray or None): The corresponding labels for each patch (if labels are provided).
+    """
+    patches = []
+    valid_labels = []
+    pad = patch_size // 2
+
+    # Pad images with zeros for patch extraction
+    padded_images = np.pad(images, ((pad, pad), (pad, pad), (0, 0)), mode='constant')
+
+    # Pad labels if provided, otherwise set to None
+    padded_labels = np.pad(labels, ((pad, pad), (pad, pad)), mode='constant') if labels is not None else None
+
+    for i in range(pad, padded_images.shape[0] - pad):
+        for j in range(pad, padded_images.shape[1] - pad):
+            patch = padded_images[i - pad:i + pad + 1, j - pad:j + pad + 1, :]
+            if labels is None or (padded_labels is not None and padded_labels[i, j] != 0):
+                patches.append(patch)
+                if labels is not None:
+                    valid_labels.append(padded_labels[i, j])
+
+    patches = np.array(patches)
+    valid_labels = np.array(valid_labels) if labels is not None else None
+
+    if patches.shape[0] == 0:
+        raise ValueError("No valid patches found, check label distribution.")
+
+    return patches, valid_labels
+
+
+# Noramalizes the extracted patches
+def normalize_patches(patches):
+    patches = patches.astype(np.float32)
+    num_patches, height, width, channels = patches.shape
+    reshaped = patches.reshape(-1, channels)
+    min_vals = reshaped.min(axis=0)
+    max_vals = reshaped.max(axis=0)
+    denom = max_vals - min_vals
+    denom[denom == 0] = 1
+    normalized = (reshaped - min_vals) / denom
+    return normalized.reshape(num_patches, height, width, channels)
+
+# Saves the transformer object
+def save_object(file_path, obj):
+    """
+    Save an object to a file using pickle.
+    
+    Args:
+        file_path (str): Path where the object will be saved.
+        obj: Object to be saved.
+    """
+    try:
+        dir_path = os.path.dirname(file_path)
+        os.makedirs(dir_path, exist_ok=True)
+        
+        with open(file_path, "wb") as file_obj:
+            pickle.dump(obj, file_obj)
+        
+        #logging.info(f"Object saved at {file_path}.")
+    except Exception as e:
+        #logging.error(f"Failed to save object at {file_path}: {e}")
+        raise CustomException(e,sys)
+    
+    
+    
+# Splits the data into training and testing sets
+def preprocess_and_split(patches, labels=None, test_size=0.2, batch_size=32):
+    """
+    Preprocess hyperspectral data and split into train/test sets.
+
+    Args:
+        patches (ndarray): Extracted patches of shape (num_patches, patch_size, patch_size, C).
+        labels (ndarray, optional): Ground-truth labels (for supervised learning).
+        test_size (float): Fraction of data to use for testing.
+        batch_size (int): Batch size for TensorFlow datasets.
+
+    Returns:
+        train_dataset, test_dataset: TensorFlow datasets for training and testing.
+    """
+    if labels is not None:
+        if patches.shape[0] != labels.shape[0]:
+            raise ValueError("Mismatch between patches and labels.")
+        
+        X_train, X_test, y_train, y_test = train_test_split(
+            patches, labels, test_size=test_size, random_state=42, stratify=labels
+        )
+        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    else:
+        # For AutoEncoder: inputs = targets
+        X_train, X_test = train_test_split(
+            patches, test_size=test_size, random_state=42
+        )
+        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train)).shuffle(len(X_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, X_test)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
+    return train_dataset, test_dataset
+
+
+# Loads the transformer object
+def load_transformer(transformer_path):
+    """
+    Load a saved transformer object from the specified path.
+
+    Args:
+        transformer_path (str): Path to the saved transformer object.
+
+    Returns:
+        dict: Loaded transformer object.
+
+    Raises:
+        CustomException: If any error occurs during loading.
+    """
+    try:
+        if not os.path.exists(transformer_path):
+            raise FileNotFoundError(f"Transformer file not found at path: {transformer_path}")
+        
+        with open(transformer_path, 'rb') as file:
+            transformer = pickle.load(file)
+        
+        logging.info(f"Transformer object loaded from {transformer_path}.")
+        return transformer
+    except Exception as e:
+        logging.error(f"Error occurred while loading transformer object: {e}")
+        raise CustomException(e, sys)
+
+
+
+
+
+
