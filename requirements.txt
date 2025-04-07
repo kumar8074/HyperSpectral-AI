@@ -1,0 +1,15 @@
+flask
+pillow
+opencv-python
+opencv-contrib-python
+numpy
+deepface
+cryptography
+tf-keras
+tensorflow-macos
+scikit-learn
+scikit-image
+matplotlib
+seaborn
+pytest
+pyyaml
