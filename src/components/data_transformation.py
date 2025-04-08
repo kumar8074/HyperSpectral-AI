@@ -68,7 +68,7 @@ class DataTransformationConfig:
     test_size: float  # Fraction of data to use for testing
     batch_size: int  # Batch size for TensorFlow datasets
     transformer_obj_file_path: str  # Path to save the transformer object
-    use_pca: bool = True  # Whether to apply PCA (True for CNN, False for AE)
+    use_pca: bool  # Whether to apply PCA (True for CNN, False for AE)
 
 class DataTransformation:
     def __init__(self, config: DataTransformationConfig):

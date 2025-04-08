@@ -39,6 +39,7 @@ def load_yaml(file_path):
     return data
 
 
+#################### UTILIZED IN DATA INGESTION ############################
 # Function to load the Hyperspectral data
 def load_hyperspectral_data(data_dir, dataset_name, config):
     """
@@ -101,8 +102,10 @@ def load_hyperspectral_data(data_dir, dataset_name, config):
     #print(f"Unique labels: {set(labels.flatten())}")
 
     return images, labels
+#################### UTILIZED IN DATA INGESTION ############################
 
 
+#################### UTILIZED IN DATA TRANSFORMATION ############################
 # Applies PCA to the hyperspectral data (only used for CNN Based Approach)
 def apply_pca(images, n_components):
     """
@@ -258,6 +261,219 @@ def load_transformer(transformer_path):
     except Exception as e:
         logging.error(f"Error occurred while loading transformer object: {e}")
         raise CustomException(e, sys)
+#################### UTILIZED IN DATA TRANSFORMATION ############################
+
+
+#################### UTILIZED IN MODEL TRAINER ##################################
+def get_optimizer(optimizer_name):
+    """
+    Get the optimizer by name.
+    
+    Args:
+        optimizer_name (str): The name of the optimizer to use.
+        
+    Returns:
+        The TensorFlow optimizer class.
+    """
+
+    optimizer_dict = {
+        'adam': tf.keras.optimizers.Adam,
+        'sgd': tf.keras.optimizers.SGD,
+        'rmsprop': tf.keras.optimizers.RMSprop,
+        'adagrad': tf.keras.optimizers.Adagrad,
+        'adadelta': tf.keras.optimizers.Adadelta,
+        'adamax': tf.keras.optimizers.Adamax,
+        'nadam': tf.keras.optimizers.Nadam
+    }
+    
+    if optimizer_name.lower() not in optimizer_dict:
+        raise ValueError(f"Optimizer '{optimizer_name}' not supported. Available options: {list(optimizer_dict.keys())}")
+    
+    return optimizer_dict[optimizer_name.lower()]
+
+
+def get_loss(loss_name):
+    """
+    Get the loss function by name.
+    
+    Args:
+        loss_name (str): The name of the loss function to use.
+        
+    Returns:
+        The TensorFlow loss function.
+    """
+    
+    loss_dict = {
+        'categorical_crossentropy': tf.keras.losses.CategoricalCrossentropy,
+        'sparse_categorical_crossentropy': tf.keras.losses.SparseCategoricalCrossentropy,
+        'binary_crossentropy': tf.keras.losses.BinaryCrossentropy,
+        'mean_squared_error': tf.keras.losses.MeanSquaredError,
+        'mean_absolute_error': tf.keras.losses.MeanAbsoluteError,
+        'huber': tf.keras.losses.Huber,
+        'kullback_leibler_divergence': tf.keras.losses.KLDivergence
+    }
+    
+    if loss_name.lower() not in loss_dict:
+        raise ValueError(f"Loss function '{loss_name}' not supported. Available options: {list(loss_dict.keys())}")
+    
+    return loss_dict[loss_name.lower()]()
+
+
+def get_metric(metric_name):
+    """
+    Get the metric by name.
+    
+    Args:
+        metric_name (str): The name of the metric to use.
+        
+    Returns:
+        The TensorFlow metric object.
+    """
+    
+    metric_dict = {
+        'accuracy': tf.keras.metrics.SparseCategoricalAccuracy,
+        'sparse_categorical_accuracy': tf.keras.metrics.SparseCategoricalAccuracy,
+        'categorical_accuracy': tf.keras.metrics.CategoricalAccuracy,
+        'precision': tf.keras.metrics.Precision,
+        'recall': tf.keras.metrics.Recall,
+        'auc': tf.keras.metrics.AUC,
+        'mae': tf.keras.metrics.MeanAbsoluteError,
+        'mse': tf.keras.metrics.MeanSquaredError
+    }
+    
+    if metric_name.lower() not in metric_dict:
+        raise ValueError(f"Metric '{metric_name}' not supported. Available options: {list(metric_dict.keys())}")
+    
+    return metric_dict[metric_name.lower()]()
+
+
+def train_model(model, train_dataset, test_dataset, save_model_path, epochs, callbacks=None):
+    """
+    Train a TensorFlow model.
+    
+    Args:
+        model: The TensorFlow Keras model to train.
+        train_dataset: Training dataset.
+        test_dataset: Validation/testing dataset.
+        save_model_path (str): Path to save the trained model.
+        epochs (int): Number of epochs to train for.
+        callbacks (list, optional): List of Keras callbacks to use during training.
+        
+    Returns:
+        history: The training history.
+    """
+    
+    # Create default callbacks if none provided
+    if callbacks is None:
+        callbacks = [
+            # Early stopping to prevent overfitting
+            tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=10,
+                restore_best_weights=True
+            ),
+            # Model checkpoint to save the best model
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=save_model_path,
+                monitor='val_loss',
+                save_best_only=True,
+                save_weights_only=False,
+                verbose=1
+            ),
+            # Reduce learning rate when a metric has stopped improving
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=0.5,
+                patience=5,
+                min_lr=1e-6,
+                verbose=1
+            ),
+            # TensorBoard for visualizing training progress
+            tf.keras.callbacks.TensorBoard(
+                log_dir=os.path.join(os.path.dirname(save_model_path), 'tensorboard_logs'),
+                histogram_freq=1
+            )
+        ]
+    
+    # Train the model
+    logging.info(f"Starting model training for {epochs} epochs")
+    history = model.fit(
+        train_dataset,
+        epochs=epochs,
+        validation_data=test_dataset,
+        callbacks=callbacks,
+        verbose=1
+    )
+    
+    # Save the final model if it wasn't saved by callbacks
+    if not any(isinstance(cb, tf.keras.callbacks.ModelCheckpoint) for cb in callbacks):
+        model.save(save_model_path)
+        logging.info(f"Model saved to {save_model_path}")
+    
+    return history
+#################### UTILIZED IN MODEL TRAINER ##################################  
+
+
+#################### UTILIZED IN MODEL EVALUATION ##################################
+def evaluate_model(model, test_dataset, class_names=None):
+    """
+    Evaluate a trained model on a test dataset.
+    
+    Args:
+        model: The trained TensorFlow Keras model.
+        test_dataset: The test dataset.
+        class_names (list, optional): List of class names for the confusion matrix.
+        
+    Returns:
+        dict: A dictionary containing evaluation metrics.
+    """
+    
+    # Evaluate the model
+    logging.info("Evaluating model on test dataset")
+    evaluation = model.evaluate(test_dataset, verbose=1)
+    
+    # Get model metric names
+    metric_names = model.metrics_names
+    
+    # Create a dictionary of metrics
+    metrics_dict = dict(zip(metric_names, evaluation))
+    
+    # If class names are provided, compute classification report and confusion matrix
+    if class_names is not None:
+        # Extract predictions and true labels
+        y_pred = []
+        y_true = []
+        
+        for images, labels in test_dataset:
+            predictions = model.predict(images)
+            if isinstance(predictions, list):  # For AutoEncoder, predictions is [decoded, classified]
+                predictions = predictions[1]
+                
+            # Convert one-hot encoded or logits to class indices
+            if predictions.shape[-1] > 1:  # Multi-class classification
+                predictions = np.argmax(predictions, axis=-1)
+            else:  # Binary classification
+                predictions = (predictions > 0.5).astype(int)
+            
+            # If labels are one-hot encoded, convert to class indices
+            if len(labels.shape) > 1 and labels.shape[-1] > 1:
+                labels = np.argmax(labels, axis=-1)
+            
+            y_pred.extend(predictions)
+            y_true.extend(labels.numpy())
+        
+        # Compute confusion matrix
+        cm = confusion_matrix(y_true, y_pred)
+        
+        # Compute classification report
+        report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+        
+        # Add to metrics dictionary
+        metrics_dict['confusion_matrix'] = cm
+        metrics_dict['classification_report'] = report
+    
+    return metrics_dict  
+
 
 
 

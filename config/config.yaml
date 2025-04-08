@@ -120,14 +120,17 @@ transformation:
 
 # Model parameters
 model_trainer:
-  model: "cnn"  # Model to use
-  dataset: "Botswana" # Dataset to Use for training
-  epochs: 100  # Number of epochs to train
-  learning_rate: 0.001  # Learning rate for the optimizer
-  loss: "sparse_categorical_crossentropy"  # Loss function to use
-  optimizer: "adam"  # Optimizer to use
-  metrics: ["accuracy"] # Metrics to track during training
-  model_file_path: "artifacts/cnn_model.keras"  # Path to save the trained model
+  model: "cnn"  # Options: "cnn" or "ae"
+  dataset: "Botswana"  # Dataset to use for training
+  epochs: 100
+  learning_rate: 0.001
+  loss: "sparse_categorical_crossentropy"
+  optimizer: "adam"
+  metrics: ["accuracy"]
+  model_file_path_cnn: "artifacts/cnn_model.keras"
+  model_file_path_ae: "artifacts/ae_model.keras"
+  use_pca: true  # false if using AutoEncoder
+
 
 
 
