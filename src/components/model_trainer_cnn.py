@@ -92,6 +92,44 @@ class CNNModelTrainer:
         except Exception as e:
             logging.error("Error during CNN model training: %s", str(e))
             raise CustomException(e, sys)
+            
+    def initiate_model_training(self, train_dataset, test_dataset, n_classes, in_channels):
+        """
+        Initiates the complete model training process including validation, model configuration,
+        compilation, and training.
+        
+        Args:
+            train_dataset: TensorFlow dataset for training.
+            test_dataset: TensorFlow dataset for testing.
+            n_classes: Number of output classes.
+            in_channels: Number of input channels (e.g., number of PCA components).
+            
+        Returns:
+            model: The trained TensorFlow Keras model.
+        """
+        logging.info("Starting model training process")
+        try:
+            # Validate inputs
+            if train_dataset is None or test_dataset is None:
+                raise ValueError("Train or test dataset cannot be None")
+                
+            if n_classes <= 0:
+                raise ValueError(f"Invalid number of classes: {n_classes}")
+                
+            if in_channels <= 0:
+                raise ValueError(f"Invalid number of input channels: {in_channels}")
+                
+            # Train the model
+            model = self.train(train_dataset, test_dataset, n_classes, in_channels)
+            
+            logging.info(f"Model saved at: {self.trainer_config.model_save_path}")
+            logging.info("Model training process completed successfully")
+            
+            return model
+            
+        except Exception as e:
+            logging.error(f"Error in model training process: {e}")
+            raise CustomException(e, sys)
 
 
 # Example usage as script
@@ -129,11 +167,7 @@ if __name__ == "__main__":
 
         # Data transformation
         data_transformation = DataTransformation(config=transformation_config)
-        transformer = data_transformation.get_transformer_object(images)
-        data_transformation.save_transformer(transformer)
-        
-        patches, valid_labels = data_transformation.transform_data(images, labels)
-        train_dataset, test_dataset = data_transformation.prepare_datasets(patches, valid_labels)
+        train_dataset, test_dataset, transformer = data_transformation.initiate_data_transformation(images, labels)
 
         # Get the number of classes and input channels
         n_classes = len(config['datasets'][dataset_index]['label_values'])
@@ -149,11 +183,12 @@ if __name__ == "__main__":
             model_save_path=config['model_trainer']['model_file_path_cnn']
         )
 
-        # Model training
+        # Model training using the new initiate_model_training method
         model_trainer = CNNModelTrainer(config=trainer_config)
-        model = model_trainer.train(train_dataset, test_dataset, n_classes, in_channels)
+        model = model_trainer.initiate_model_training(train_dataset, test_dataset, n_classes, in_channels)
 
         logging.info("CNN model training completed successfully.")
+        print("✅ CNN model training pipeline completed successfully.")
     except Exception as e:
         logging.error(f"Error in CNN model training script: {e}")
         raise CustomException(e, sys)

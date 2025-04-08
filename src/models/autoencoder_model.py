@@ -59,4 +59,4 @@ class HyperspectralAE(tf.keras.Model):
         encoded = self.encoder(inputs)
         decoded = self.decoder(encoded)
         classified = self.classifier(encoded)
-        return decoded, classified
+        return {'reconstruction': decoded, 'classification': classified}
