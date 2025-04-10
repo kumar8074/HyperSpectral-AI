@@ -1,3 +1,15 @@
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: src/components/model_trainer_cnn.py
+# Description: This module handles the CNN model training process for hyperspectral data.
+#              It includes data ingestion, transformation, model configuration, compilation, and training.
+# Author: LALAN KUMAR
+# Created: [08-01-2025]
+# Updated: [08-04-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 import os
 import sys
 import tensorflow as tf

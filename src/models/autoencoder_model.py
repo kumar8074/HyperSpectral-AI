@@ -1,3 +1,15 @@
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: src/models/autoencoder_model.py
+# Description: This module defines the architecture of a Autoencoder model for hyperspectral data.
+#              It includes an encoder-decoder structure for feature extraction and a classifier for classification tasks.
+# Author: LALAN KUMAR
+# Created: [08-01-2025]
+# Updated: [08-01-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 import tensorflow as tf
 from tensorflow.keras.layers import (Conv2D, Conv2DTranspose, MaxPool2D, BatchNormalization, 
                                      ReLU, GlobalAveragePooling2D, Dense)
@@ -38,7 +50,7 @@ class HyperspectralAE(tf.keras.Model):
             Conv2DTranspose(in_channels, 2, strides=1, padding='valid'),  # (6,6) → (7,7)
             BatchNormalization(),
             tf.keras.layers.Activation('sigmoid')
-        ])
+        ],name='decoder')
 
         # Classifier
         self.classifier = tf.keras.Sequential([
@@ -53,10 +65,10 @@ class HyperspectralAE(tf.keras.Model):
             GlobalAveragePooling2D(),
             Dense(1024, activation='relu'),
             Dense(n_classes, activation='softmax')
-        ])
+        ],name='classifier')
 
     def call(self, inputs):
         encoded = self.encoder(inputs)
         decoded = self.decoder(encoded)
-        classified = self.classifier(encoded)
-        return {'reconstruction': decoded, 'classification': classified}
+        classification = self.classifier(encoded)
+        return decoded, classification

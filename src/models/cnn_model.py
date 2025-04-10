@@ -1,3 +1,15 @@
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: src/models/cnn_model.py
+# Description: This module defines the architecture of a CNN model for hyperspectral data.
+#              It includes multiple convolutional layers, batch normalization, and fully connected layers.
+# Author: LALAN KUMAR
+# Created: [08-01-2025]
+# Updated: [08-01-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 from tensorflow.keras import models, layers
 
 # CNN Model for Hyperspectral Data

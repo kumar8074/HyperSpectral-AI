@@ -1,3 +1,15 @@
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: src/components/data_ingestion.py
+# Description: This module handles the data ingestion process for hyperspectral images.
+#              It includes loading images and labels from specified directories and configurations.
+# Author: LALAN KUMAR
+# Created: [07-01-2025]
+# Updated: [07-04-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 import os
 import sys
 from dataclasses import dataclass

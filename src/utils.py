@@ -1,3 +1,16 @@
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: src/utils.py
+# Description: This script contains utility functions for loading and preprocessing hyperspectral
+#              data, applying PCA, extracting patches, normalizing data, and splitting datasets.
+#              It also includes functions for model training, evaluation, and saving/loading objects.
+# Author: LALAN KUMAR
+# Created: [08-01-2025]
+# Updated: [10-04-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 import os
 import scipy.io as sio
 import sys
@@ -202,7 +215,7 @@ def save_object(file_path, obj):
     
     
 # Splits the data into training and testing sets
-def preprocess_and_split(patches, labels=None, test_size=0.2, batch_size=32):
+def preprocess_and_split(patches, labels, test_size=0.2, batch_size=32,ae=False):
     """
     Preprocess hyperspectral data and split into train/test sets.
 
@@ -215,7 +228,23 @@ def preprocess_and_split(patches, labels=None, test_size=0.2, batch_size=32):
     Returns:
         train_dataset, test_dataset: TensorFlow datasets for training and testing.
     """
-    if labels is not None:
+    if ae:
+        if patches.shape[0] != labels.shape[0]:
+            raise ValueError("Mismatch between patches and labels.")
+        
+        
+        X_train, X_val, y_train, y_val = train_test_split(
+            patches, labels, test_size=test_size, stratify=labels, random_state=42
+        )
+        
+        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, (X_train, y_train)))
+        test_dataset = tf.data.Dataset.from_tensor_slices((X_val, (X_val, y_val)))
+
+        train_dataset = train_dataset.shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        test_dataset = test_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        logging.info("AutoEncoder Workflow TF datasets successfully created.")
+        
+    else:
         if patches.shape[0] != labels.shape[0]:
             raise ValueError("Mismatch between patches and labels.")
         
@@ -224,14 +253,9 @@ def preprocess_and_split(patches, labels=None, test_size=0.2, batch_size=32):
         )
         train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
         test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    else:
-        # For AutoEncoder: inputs = targets
-        X_train, X_test = train_test_split(
-            patches, test_size=test_size, random_state=42
-        )
-        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, X_train)).shuffle(len(X_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, X_test)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
+        logging.info("CNN Workflow TF datasets successfully created.")
+        
+    
     return train_dataset, test_dataset
 
 
@@ -307,8 +331,8 @@ def get_loss(loss_name):
         'categorical_crossentropy': tf.keras.losses.CategoricalCrossentropy,
         'sparse_categorical_crossentropy': tf.keras.losses.SparseCategoricalCrossentropy,
         'binary_crossentropy': tf.keras.losses.BinaryCrossentropy,
-        'mean_squared_error': tf.keras.losses.MeanSquaredError,
-        'mean_absolute_error': tf.keras.losses.MeanAbsoluteError,
+        'mse': tf.keras.losses.MeanSquaredError,
+        'mae': tf.keras.losses.MeanAbsoluteError,
         'huber': tf.keras.losses.Huber,
         'kullback_leibler_divergence': tf.keras.losses.KLDivergence
     }

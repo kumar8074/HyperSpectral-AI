@@ -1,4 +1,14 @@
-# config.yaml
+# ===================================================================================
+# Project: Hyperspectral Image Classification (HyperSpectral AI)
+# File: config/config.yaml
+# Description: This file defines the various configurations for DATA, data transformation and model training
+# Author: LALAN KUMAR
+# Created: [08-01-2025]
+# Updated: [09-04-2025]
+# LAST MODIFIED BY: LALAN KUMAR
+# Version: 1.0.0
+# ===================================================================================
+
 data_dir: "DATA"  # Path to the parent directory containing datasets
 
 datasets:
@@ -125,8 +135,12 @@ model_trainer:
   epochs: 100
   learning_rate: 0.001
   loss: "sparse_categorical_crossentropy"
+  recon_loss_ae: "mse"
+  class_loss_ae: "sparse_categorical_crossentropy"
   optimizer: "adam"
   metrics: ["accuracy"]
+  recon_weight_ae: 0.5
+  class_weight_ae: 0.5
   model_file_path_cnn: "artifacts/cnn_model.keras"
   model_file_path_ae: "artifacts/ae_model.keras"
   use_pca: true  # false if using AutoEncoder
