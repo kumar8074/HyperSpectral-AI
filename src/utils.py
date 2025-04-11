@@ -22,7 +22,7 @@ import tensorflow as tf
 import pickle
 import logging
 import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score
 import matplotlib.pyplot as plt
 from tensorflow.keras.optimizers import Adam, SGD, RMSprop
 from tensorflow.keras.losses import SparseCategoricalCrossentropy, CategoricalCrossentropy
@@ -439,64 +439,87 @@ def train_model(model, train_dataset, test_dataset, save_model_path, epochs, cal
 
 
 #################### UTILIZED IN MODEL EVALUATION ##################################
-def evaluate_model(model, test_dataset, class_names=None):
+def evaluate_model(model, X_test, y_test, label_values,val_dataset=None, is_ae=False):
     """
-    Evaluate a trained model on a test dataset.
-    
+    Evaluate the model and visualize metrics like confusion matrix and classification report.
+
     Args:
-        model: The trained TensorFlow Keras model.
-        test_dataset: The test dataset.
-        class_names (list, optional): List of class names for the confusion matrix.
-        
-    Returns:
-        dict: A dictionary containing evaluation metrics.
+        model: The trained TensorFlow model.
+        X_test: Test data patches.
+        y_test: Test data labels.
+        label_values: List of label names corresponding to class indices.
+        is_ae: Boolean indicating if model is an AutoEncoder+Classifier (default: False).
     """
-    
-    # Evaluate the model
-    logging.info("Evaluating model on test dataset")
-    evaluation = model.evaluate(test_dataset, verbose=1)
-    
-    # Get model metric names
-    metric_names = model.metrics_names
-    
-    # Create a dictionary of metrics
-    metrics_dict = dict(zip(metric_names, evaluation))
-    
-    # If class names are provided, compute classification report and confusion matrix
-    if class_names is not None:
-        # Extract predictions and true labels
-        y_pred = []
-        y_true = []
+    # Get predictions
+    if is_ae:
+        _, predictions = model.predict(val_dataset)
+        # Get predicted class labels (argmax of softmax output)
+        y_pred = np.argmax(predictions, axis=1)
+        # Get true labels from the dataset
+        y_true = np.concatenate([y for _, (_, y) in val_dataset], axis=0)
         
-        for images, labels in test_dataset:
-            predictions = model.predict(images)
-            if isinstance(predictions, list):  # For AutoEncoder, predictions is [decoded, classified]
-                predictions = predictions[1]
-                
-            # Convert one-hot encoded or logits to class indices
-            if predictions.shape[-1] > 1:  # Multi-class classification
-                predictions = np.argmax(predictions, axis=-1)
-            else:  # Binary classification
-                predictions = (predictions > 0.5).astype(int)
-            
-            # If labels are one-hot encoded, convert to class indices
-            if len(labels.shape) > 1 and labels.shape[-1] > 1:
-                labels = np.argmax(labels, axis=-1)
-            
-            y_pred.extend(predictions)
-            y_true.extend(labels.numpy())
-        
-        # Compute confusion matrix
-        cm = confusion_matrix(y_true, y_pred)
-        
-        # Compute classification report
-        report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
-        
-        # Add to metrics dictionary
-        metrics_dict['confusion_matrix'] = cm
-        metrics_dict['classification_report'] = report
+    else:
+        predictions = model.predict(X_test)
+
+    # Get the class predictions (single value per sample)
+    predicted_labels = np.argmax(predictions, axis=-1)
     
-    return metrics_dict  
+    # Ensure y_test is a 1D array of integers
+    if isinstance(y_test, tf.Tensor):
+        y_test = y_test.numpy()
+    y_test_int = y_test.astype(int)
+    
+    # Print shapes for debugging
+    logging.info(f"X_test shape: {X_test.shape}")
+    logging.info(f"predictions shape: {predictions.shape}")
+    logging.info(f"predicted_labels shape: {predicted_labels.shape}")
+    logging.info(f"y_test_int shape: {y_test_int.shape}")
+
+    # Identify unique classes in y_test
+    unique_classes = np.unique(y_test_int)
+    logging.info(f"Unique classes in y_test: {unique_classes}")
+
+    # Filter label_values to match unique classes
+    filtered_label_values = [label_values[i] for i in unique_classes]
+    logging.info(f"Filtered label values: {filtered_label_values}")
+
+    # Calculate metrics using scikit-learn
+    accuracy = accuracy_score(y_test_int, predicted_labels)
+    precision_val = precision_score(y_test_int, predicted_labels, average='weighted', zero_division=0)
+    recall_val = recall_score(y_test_int, predicted_labels, average='weighted', zero_division=0)
+
+    logging.info(f"Accuracy: {accuracy:.4f}")
+    logging.info(f"Precision: {precision_val:.4f}")
+    logging.info(f"Recall: {recall_val:.4f}")
+
+    # Classification report
+    logging.info("\nClassification Report:\n")
+    logging.info("\n" + classification_report(
+        y_test_int,
+        predicted_labels,
+        labels=unique_classes,
+        target_names=filtered_label_values,
+        zero_division=0
+    ))
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test_int, predicted_labels, labels=unique_classes)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=filtered_label_values,
+                yticklabels=filtered_label_values)
+    plt.title('Confusion Matrix')
+    plt.xlabel('Predicted Labels')
+    plt.ylabel('True Labels')
+    plt.show()
+    logging.info("Model evaluation completed.")
+    
+    # Return evaluation results as a dictionary
+    return {
+        "accuracy": float(accuracy),
+        "precision": float(precision_val),
+        "recall": float(recall_val)
+    }
 
 
 
