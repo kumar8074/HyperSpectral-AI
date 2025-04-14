@@ -5,7 +5,7 @@
 #              It includes dimensionality reduction, patch extraction and splitting into train and test sets for specified HSI data.
 # Author: LALAN KUMAR
 # Created: [07-01-2025]
-# Updated: [10-04-2025]
+# Updated: [14-04-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -136,7 +136,10 @@ class DataTransformation:
             )
 
             # Normalize the patches (for both workflows)
-            normalized_patches = normalize_patches(patches)
+            if self.transformation_config.use_pca:
+                normalized_patches = normalize_patches(patches,method='pca_output') # For CNN
+            else:
+                normalized_patches = normalize_patches(patches, method='per_band') # For AE
 
             return normalized_patches, valid_labels
         except Exception as e:

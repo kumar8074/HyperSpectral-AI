@@ -6,7 +6,7 @@
 #              It also includes functions for model training, evaluation, and saving/loading objects.
 # Author: LALAN KUMAR
 # Created: [08-01-2025]
-# Updated: [10-04-2025]
+# Updated: [14-04-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -22,8 +22,12 @@ import tensorflow as tf
 import pickle
 import logging
 import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score
+from sklearn.metrics import (classification_report, confusion_matrix, accuracy_score, 
+                             precision_score, recall_score, f1_score)
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+from matplotlib.colors import ListedColormap, BoundaryNorm
 from tensorflow.keras.optimizers import Adam, SGD, RMSprop
 from tensorflow.keras.losses import SparseCategoricalCrossentropy, CategoricalCrossentropy
 from tensorflow.keras.metrics import Accuracy, Precision, Recall, SparseCategoricalAccuracy
@@ -180,16 +184,68 @@ def extract_patches(images, labels=None, patch_size=7):
 
 
 # Noramalizes the extracted patches
-def normalize_patches(patches):
+def normalize_patches(patches, method='pca_output'): # For AE use per_band.
+    """
+    Normalize hyperspectral image patches or PCA-reduced patches.
+
+    Parameters:
+        patches (np.ndarray): Input array of shape (num_patches, height, width, channels/components).
+        method (str): One of 'per_band', 'per_patch', 'pca_output'.
+
+    Returns:
+        np.ndarray: Normalized patches of the same shape.
+    """
     patches = patches.astype(np.float32)
-    num_patches, height, width, channels = patches.shape
-    reshaped = patches.reshape(-1, channels)
-    min_vals = reshaped.min(axis=0)
-    max_vals = reshaped.max(axis=0)
-    denom = max_vals - min_vals
-    denom[denom == 0] = 1
-    normalized = (reshaped - min_vals) / denom
-    return normalized.reshape(num_patches, height, width, channels)
+
+    if np.isnan(patches).any():
+        raise ValueError("Input contains NaNs before normalization.")
+
+    if method == 'per_band':
+        # Suitable for AE+Classifier (original spectral bands)
+        num_patches, height, width, channels = patches.shape
+        reshaped = patches.reshape(-1, channels)
+
+        # Clip extreme values to improve robustness
+        reshaped = np.clip(
+            reshaped,
+            np.percentile(reshaped, 1, axis=0),
+            np.percentile(reshaped, 99, axis=0)
+        )
+
+        min_vals = reshaped.min(axis=0)
+        max_vals = reshaped.max(axis=0)
+        denom = max_vals - min_vals
+        denom[denom == 0] = 1  # Avoid division by zero
+
+        normalized = (reshaped - min_vals) / denom
+        return normalized.reshape(num_patches, height, width, channels)
+
+    elif method == 'per_patch':
+        # Normalize each patch individually (can be noisy)
+        min_vals = patches.min(axis=(1, 2, 3), keepdims=True)
+        max_vals = patches.max(axis=(1, 2, 3), keepdims=True)
+        denom = max_vals - min_vals
+        denom[denom == 0] = 1
+
+        return (patches - min_vals) / denom
+
+    elif method == 'pca_output':
+        # Suitable after PCA (for CNN workflow)
+        num_patches, height, width, components = patches.shape
+        reshaped = patches.reshape(-1, components)
+
+        min_vals = reshaped.min(axis=0)
+        max_vals = reshaped.max(axis=0)
+        denom = max_vals - min_vals
+        denom[denom == 0] = 1
+
+        normalized = (reshaped - min_vals) / denom
+        return normalized.reshape(num_patches, height, width, components)
+
+    else:
+        raise ValueError(f"Unknown normalization method: {method}")
+
+
 
 # Saves the transformer object
 def save_object(file_path, obj):
@@ -439,91 +495,127 @@ def train_model(model, train_dataset, test_dataset, save_model_path, epochs, cal
 
 
 #################### UTILIZED IN MODEL EVALUATION ##################################
-def evaluate_model(model, X_test, y_test, label_values,val_dataset=None, is_ae=False):
-    """
-    Evaluate the model and visualize metrics like confusion matrix and classification report.
+def get_predictions(model, dataset, label_values, ae=False): # label_values is a list of class names for specific dataset(present in config.yaml)
+    """Makes predictions on a CNN or AutoEncoder+Classifier model
 
     Args:
-        model: The trained TensorFlow model.
-        X_test: Test data patches.
-        y_test: Test data labels.
+        model: Trained TensorFlow model.
+        dataset: tf.data.Dataset object with batches.
         label_values: List of label names corresponding to class indices.
-        is_ae: Boolean indicating if model is an AutoEncoder+Classifier (default: False).
+        ae (bool, optional): If True, evaluates AutoEncoder+Classifier. If False, evaluates CNN. Defaults to False.
     """
-    # Get predictions
-    if is_ae:
-        _, predictions = model.predict(val_dataset)
-        # Get predicted class labels (argmax of softmax output)
+    if ae:
+        # AutoEncoder + Classifier
+        reconstructions, predictions = model.predict(dataset)
         y_pred = np.argmax(predictions, axis=1)
-        # Get true labels from the dataset
-        y_true = np.concatenate([y for _, (_, y) in val_dataset], axis=0)
-        
+        y_true = np.concatenate([y for _, (_, y) in dataset], axis=0)
     else:
+        # CNN
+        X_test, y_true = next(iter(dataset.unbatch().batch(len(dataset))))
         predictions = model.predict(X_test)
+        y_pred = np.argmax(predictions, axis=-1)
 
-    # Get the class predictions (single value per sample)
-    predicted_labels = np.argmax(predictions, axis=-1)
-    
-    # Ensure y_test is a 1D array of integers
-    if isinstance(y_test, tf.Tensor):
-        y_test = y_test.numpy()
-    y_test_int = y_test.astype(int)
-    
-    # Print shapes for debugging
-    logging.info(f"X_test shape: {X_test.shape}")
-    logging.info(f"predictions shape: {predictions.shape}")
-    logging.info(f"predicted_labels shape: {predicted_labels.shape}")
-    logging.info(f"y_test_int shape: {y_test_int.shape}")
-
-    # Identify unique classes in y_test
-    unique_classes = np.unique(y_test_int)
-    logging.info(f"Unique classes in y_test: {unique_classes}")
-
-    # Filter label_values to match unique classes
+    unique_classes = np.unique(y_true)
     filtered_label_values = [label_values[i] for i in unique_classes]
-    logging.info(f"Filtered label values: {filtered_label_values}")
+    return y_true, y_pred, unique_classes, filtered_label_values
 
-    # Calculate metrics using scikit-learn
-    accuracy = accuracy_score(y_test_int, predicted_labels)
-    precision_val = precision_score(y_test_int, predicted_labels, average='weighted', zero_division=0)
-    recall_val = recall_score(y_test_int, predicted_labels, average='weighted', zero_division=0)
+def calculate_metrics(y_true, y_pred):
+    """
+    Calculate classification metrics.
 
+    Args:
+        y_true (ndarray): True labels.
+        y_pred (ndarray): Predicted labels.
+
+    Returns:
+        dict: Dictionary containing accuracy, precision, recall, and F1 score.
+    """
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+    
     logging.info(f"Accuracy: {accuracy:.4f}")
-    logging.info(f"Precision: {precision_val:.4f}")
-    logging.info(f"Recall: {recall_val:.4f}")
+    logging.info(f"Precision: {precision:.4f}")
+    logging.info(f"Recall: {recall:.4f}")
+    logging.info(f"F1 Score: {f1:.4f}")
 
-    # Classification report
-    logging.info("\nClassification Report:\n")
-    logging.info("\n" + classification_report(
-        y_test_int,
-        predicted_labels,
-        labels=unique_classes,
-        target_names=filtered_label_values,
-        zero_division=0
-    ))
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1
+    }
+    
+def get_classification_report(y_true, y_pred, unique_classes, filtered_label_values):
+    """
+    Generate a classification report.
 
-    # Confusion matrix
-    cm = confusion_matrix(y_test_int, predicted_labels, labels=unique_classes)
+    Args:
+        y_true (ndarray): True labels.
+        y_pred (ndarray): Predicted labels.
+        unique_classes (ndarray): Unique class indices.
+        filtered_label_values (list): Filtered label values corresponding to unique classes.
+
+    Returns:
+        str: Classification report as a string.
+    """
+    report = classification_report(y_true, y_pred, labels=unique_classes, target_names=filtered_label_values, digits=4)
+    logging.info(f"Classification Report:\n{report}")
+    return report
+
+def plot_confusion_matrix(y_true, y_pred, unique_classes, filtered_label_values):
+    """
+    Plot the confusion matrix.
+
+    Args:
+        y_true (ndarray): True labels.
+        y_pred (ndarray): Predicted labels.
+        unique_classes (ndarray): Unique class indices.
+    """
+    cm = confusion_matrix(y_true, y_pred, labels=unique_classes)
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=filtered_label_values,
-                yticklabels=filtered_label_values)
-    plt.title('Confusion Matrix')
+                xticklabels=filtered_label_values, yticklabels=filtered_label_values)
     plt.xlabel('Predicted Labels')
     plt.ylabel('True Labels')
+    plt.title('Confusion Matrix')
     plt.show()
-    logging.info("Model evaluation completed.")
     
-    # Return evaluation results as a dictionary
-    return {
-        "accuracy": float(accuracy),
-        "precision": float(precision_val),
-        "recall": float(recall_val)
-    }
 
+def visualize_predictions(predicted_labels, true_labels, title, save_path=None):
+    print(f"[DEBUG] Predicted labels shape: {predicted_labels.shape}")
+    print(f"[DEBUG] True labels shape: {true_labels.shape}")
 
+    # Determine number of classes
+    num_classes = int(max(np.max(predicted_labels), np.max(true_labels)) + 1)
+    print(f"[DEBUG] Number of classes detected: {num_classes}")
 
+    # Generate a colormap with exactly num_classes colors
+    base_cmap = cm.get_cmap('nipy_spectral', num_classes)
+    colors = [base_cmap(i) for i in range(num_classes)]
+    colors[0] = (0, 0, 0, 1.0)  # Make class 0 black (usually background/unlabeled)
 
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(boundaries=np.arange(-0.5, num_classes + 0.5, 1), ncolors=num_classes)
 
+    # Plot predictions
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+    im0 = axs[0].imshow(true_labels, cmap=cmap, norm=norm)
+    axs[0].set_title('True Labels')
+    axs[0].axis('off')
 
+    im1 = axs[1].imshow(predicted_labels, cmap=cmap, norm=norm)
+    axs[1].set_title(title)
+    axs[1].axis('off')
 
+    fig.colorbar(im1, ax=axs, orientation='horizontal', fraction=0.05, pad=0.04)
+
+    if save_path:
+        plt.savefig(save_path)
+        print(f"[INFO] Visualization saved to: {save_path}")
+    else:
+        plt.show()
+
+    plt.close(fig)
+#################### UTILIZED IN MODEL EVALUATION ##################################

@@ -4,7 +4,7 @@
 # Description: Orchestrates the complete training pipeline for both CNN and AutoEncoder models
 # Author: LALAN KUMAR
 # Created: [12-01-2025]
-# Updated: [15-04-2025]
+# Updated: [12-04-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -12,164 +12,137 @@
 import os
 import sys
 import argparse
-from dataclasses import dataclass
-from typing import Literal
 
 # Dynamically add the project root directory to sys.path
 current_file_path = os.path.abspath(__file__)
 project_root = os.path.abspath(os.path.join(current_file_path, "../../.."))
 if project_root not in sys.path:
     sys.path.append(project_root)
+    
+from src.exception import CustomException  # Custom exception class
+from src.logger import logging  # Logging setup
+from src.utils import load_yaml  # Reusable utilities
+from src.components.data_ingestion import DataIngestion  # Data ingestion
+from src.components.data_transformation import DataTransformation, DataTransformationConfig  # Data transformation
+from src.components.model_trainer_cnn import CNNModelTrainer, CNNModelTrainerConfig  # CNN Model training
+from src.components.model_trainer_ae import AEModelTrainer, AEModelTrainerConfig  # Autoencoder Model training
 
-from src.exception import CustomException
-from src.logger import logging
-from src.utils import load_yaml
-from src.components.data_ingestion import DataIngestion
-from src.components.data_transformation import DataTransformation, DataTransformationConfig
-from src.components.model_trainer_cnn import CNNModelTrainer, CNNModelTrainerConfig
-from src.components.model_trainer_ae import AEModelTrainer, AEModelTrainerConfig
-
-@dataclass
-class TrainingPipelineConfig:
-    config_file_path: str = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../config/config.yaml'))
-
-ModelType = Literal['cnn', 'ae', 'all']
-
-class TrainingPipeline:
-    def __init__(self, model_type: ModelType = 'all'):
-        self.pipeline_config = TrainingPipelineConfig()
-        self.config = load_yaml(self.pipeline_config.config_file_path)
-        self.model_type = model_type.lower()
-        self._validate_model_type()
-
-    def _validate_model_type(self):
-        """Validate the provided model type"""
-        valid_types = ['cnn', 'ae', 'all']
-        if self.model_type not in valid_types:
-            raise ValueError(f"Invalid model type: {self.model_type}. Choose from {valid_types}")
-
-    def _run_cnn_pipeline(self, images, labels, dataset_config):
-        """Execute CNN training pipeline"""
-        logging.info("Phase 2/4: CNN Training Pipeline Started")
+def train_pipeline(model_type="cnn"):
+    """
+    Pipeline to orchestrate the training process for either CNN or Autoencoder models.
+    
+    Args:
+        model_type (str): The type of model to train, either "cnn" or "ae" (autoencoder).
         
-        # Data Transformation
-        cnn_transformation_config = DataTransformationConfig(
-            pca_components=self.config['transformation']['pca_components'],
-            patch_size=self.config['transformation']['patch_size'],
-            test_size=self.config['transformation']['test_size'],
-            batch_size=self.config['transformation']['batch_size'],
-            transformer_obj_file_path=self.config['transformation']['preprocessor_file_path'],
-            use_pca=True
-        )
-        data_transformer_cnn = DataTransformation(config=cnn_transformation_config)
-        train_dataset_cnn, test_dataset_cnn, _ = data_transformer_cnn.initiate_data_transformation(images, labels)
+    Returns:
+        None
+    """
+    try:
+        # Paths and configurations
+        CONFIG_FILE = os.path.abspath(os.path.join(project_root, 'config/config.yaml'))
+        config = load_yaml(CONFIG_FILE)
+        DATA_DIR = config['data_dir']
+        DATASET_NAME = config['model_trainer']['dataset']  # Dynamically get the dataset name from the config
         
-        # Model Training
-        cnn_trainer_config = CNNModelTrainerConfig(
-            epochs=self.config['model_trainer']['epochs'],
-            learning_rate=self.config['model_trainer']['learning_rate'],
-            loss=self.config['model_trainer']['loss'],
-            optimizer=self.config['model_trainer']['optimizer'],
-            metrics=self.config['model_trainer']['metrics'],
-            model_save_path=self.config['model_trainer']['model_file_path_cnn']
-        )
-        cnn_in_channels = self.config['transformation']['pca_components']
-        cnn_trainer = CNNModelTrainer(config=cnn_trainer_config)
-        cnn_trainer.initiate_model_training(
-            train_dataset_cnn, test_dataset_cnn, 
-            len(dataset_config['label_values']), cnn_in_channels
-        )
-        logging.info("✅ CNN Training Completed")
-
-    def _run_ae_pipeline(self, images, labels, dataset_config):
-        """Execute AutoEncoder training pipeline"""
-        logging.info("Phase 3/4: AutoEncoder Training Pipeline Started")
+        # Use PCA for CNN but not for Autoencoder
+        use_pca = True if model_type.lower() == "cnn" else False
         
-        # Data Transformation
-        ae_transformation_config = DataTransformationConfig(
-            pca_components=self.config['transformation']['pca_components'],
-            patch_size=self.config['transformation']['patch_size'],
-            test_size=self.config['transformation']['test_size'],
-            batch_size=self.config['transformation']['batch_size'],
-            transformer_obj_file_path=self.config['transformation']['preprocessor_file_path'],
-            use_pca=False
-        )
-        data_transformer_ae = DataTransformation(config=ae_transformation_config)
-        train_dataset_ae, test_dataset_ae, _ = data_transformer_ae.initiate_data_transformation(images, labels)
+        # Data ingestion
+        logging.info(f"Starting data ingestion for dataset: {DATASET_NAME}")
+        data_ingestion = DataIngestion(data_dir=DATA_DIR, config_file=CONFIG_FILE)
+        images, labels = data_ingestion.initiate_data_ingestion(dataset_name=DATASET_NAME)
+        logging.info(f"Successfully loaded dataset: {DATASET_NAME}")
         
-        # Model Training
-        ae_trainer_config = AEModelTrainerConfig(
-            epochs=self.config['model_trainer']['epochs'],
-            learning_rate=self.config['model_trainer']['learning_rate'],
-            recon_loss=self.config['model_trainer']['recon_loss_ae'],
-            class_loss=self.config['model_trainer']['class_loss_ae'],
-            recon_weight=self.config['model_trainer']['recon_weight_ae'],
-            class_weight=self.config['model_trainer']['class_weight_ae'],
-            optimizer=self.config['model_trainer']['optimizer'],
-            metrics=self.config['model_trainer']['metrics'],
-            model_save_path=self.config['model_trainer']['model_file_path_ae']
-        )
-        ae_in_channels = images.shape[-1]
-        ae_trainer = AEModelTrainer(config=ae_trainer_config)
-        ae_trainer.initiate_model_training(
-            train_dataset_ae, test_dataset_ae,
-            len(dataset_config['label_values']), ae_in_channels
-        )
-        logging.info("✅ AutoEncoder Training Completed")
-
-    def run_pipeline(self):
-        """Execute the complete training pipeline based on selected model"""
-        try:
-            logging.info("Starting hyperspectral training pipeline")
-
-            # ==================== Data Ingestion ====================
-            logging.info("Phase 1/4: Data Ingestion Started")
-            data_ingestion = DataIngestion(
-                data_dir=self.config['data_dir'],
-                config_file=self.pipeline_config.config_file_path
-            )
-            images, labels = data_ingestion.initiate_data_ingestion(
-                dataset_name=self.config['model_trainer']['dataset']
-            )
-            logging.info("✅ Data Ingestion Completed")
-
-            # ==================== Dataset Configuration ====================
-            dataset_name = self.config['model_trainer']['dataset']
-            dataset_config = next(
-                (ds for ds in self.config['datasets'] if ds['name'] == dataset_name),
-                None
-            )
-            if not dataset_config:
-                raise ValueError(f"Dataset {dataset_name} not found in configuration")
-
-            # ==================== Model Training ====================
-            if self.model_type in ['cnn', 'all']:
-                self._run_cnn_pipeline(images, labels, dataset_config)
+        # Find dataset index and configuration
+        dataset_index = -1
+        for i, dataset in enumerate(config['datasets']):
+            if dataset['name'] == DATASET_NAME:
+                dataset_index = i
+                break
+        
+        if dataset_index == -1:
+            raise ValueError(f"Dataset {DATASET_NAME} not found in configuration")
             
-            if self.model_type in ['ae', 'all']:
-                self._run_ae_pipeline(images, labels, dataset_config)
-
-            logging.info("Phase 4/4: Pipeline Completion")
-            logging.info("🚀 Training pipeline completed successfully")
-            print("✅ Training pipeline completed successfully")
-
-        except Exception as e:
-            logging.error(f"❌ Pipeline execution failed: {e}")
-            raise CustomException(e, sys)
+        # Get the number of classes
+        n_classes = len(config['datasets'][dataset_index]['label_values'])
+        
+        # Data transformation configurations
+        transformation_config = DataTransformationConfig(
+            pca_components=config['transformation']['pca_components'],
+            patch_size=config['transformation']['patch_size'],
+            test_size=config['transformation']['test_size'],
+            batch_size=config['transformation']['batch_size'],
+            transformer_obj_file_path=config['transformation']['preprocessor_file_path'],
+            use_pca=use_pca
+        )
+        
+        # Data transformation
+        logging.info(f"Starting data transformation for {model_type.upper()} workflow")
+        data_transformation = DataTransformation(config=transformation_config)
+        train_dataset, test_dataset, transformer = data_transformation.initiate_data_transformation(images, labels)
+        logging.info(f"Data transformation completed for {model_type.upper()} workflow")
+        
+        # Set input channels based on model type
+        if model_type.lower() == "cnn":
+            # For CNN, use PCA components as input channels
+            in_channels = config['transformation']['pca_components'] 
+            
+            # CNN model trainer configurations
+            trainer_config = CNNModelTrainerConfig(
+                epochs=config['model_trainer']['epochs'],
+                learning_rate=config['model_trainer']['learning_rate'],
+                loss=config['model_trainer']['loss'],
+                optimizer=config['model_trainer']['optimizer'],
+                metrics=config['model_trainer']['metrics'],
+                model_save_path=config['model_trainer']['model_file_path_cnn']
+            )
+            
+            # CNN model training
+            logging.info("Starting CNN model training")
+            model_trainer = CNNModelTrainer(config=trainer_config)
+            model = model_trainer.initiate_model_training(train_dataset, test_dataset, n_classes, in_channels)
+            logging.info("CNN model training completed successfully")
+            
+        else:  # Autoencoder workflow
+            # For AE, use original spectral bands as input channels
+            in_channels = images.shape[-1]  
+            
+            # Autoencoder model trainer configurations
+            trainer_config = AEModelTrainerConfig(
+                epochs=config['model_trainer']['epochs'],
+                learning_rate=config['model_trainer']['learning_rate'],
+                recon_loss=config['model_trainer']['recon_loss_ae'],
+                class_loss=config['model_trainer']['class_loss_ae'],
+                recon_weight=config['model_trainer']['recon_weight_ae'],
+                class_weight=config['model_trainer']['class_weight_ae'],
+                optimizer=config['model_trainer']['optimizer'],
+                metrics=config['model_trainer']['metrics'],
+                model_save_path=config['model_trainer']['model_file_path_ae']
+            )
+            
+            # Autoencoder model training
+            logging.info("Starting Autoencoder model training")
+            model_trainer = AEModelTrainer(config=trainer_config)
+            model = model_trainer.initiate_model_training(train_dataset, test_dataset, n_classes, in_channels)
+            logging.info("Autoencoder model training completed successfully")
+        
+        
+            
+        logging.info(f"{model_type.upper()} model training pipeline completed successfully")
+        print(f"✅ {model_type.upper()} model training pipeline completed successfully")
+            
+    except CustomException as ce:
+        logging.error(f"CustomException occurred: {ce}")
+        print(f"❌ Error in training pipeline: {ce}")
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        print(f"❌ Unexpected error in training pipeline: {e}")
+        raise CustomException(e, sys)
 
 if __name__ == "__main__":
-    try:
-        # Setup command line arguments
-        parser = argparse.ArgumentParser(description='Hyperspectral Model Training Pipeline')
-        parser.add_argument('--model', type=str.lower, 
-                          choices=['cnn', 'ae', 'all'], 
-                          default='ae',
-                          help='Select model to train: cnn, ae, or all (default)')
-        args = parser.parse_args()
-
-        # Execute pipeline with selected model
-        pipeline = TrainingPipeline(model_type=args.model)
-        pipeline.run_pipeline()
-    except Exception as e:
-        logging.error(f"Pipeline execution error: {e}")
-        print(f"Error: {e}")
+    parser = argparse.ArgumentParser(description="Train a model for hyperspectral image classification")
+    parser.add_argument("--model", type=str, choices=["cnn", "ae"], default="cnn",
+                       help="Type of model to train: 'cnn' for CNN model or 'ae' for Autoencoder model")
+    args = parser.parse_args()
+    
+    train_pipeline(model_type=args.model)

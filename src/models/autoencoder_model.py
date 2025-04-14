@@ -5,7 +5,7 @@
 #              It includes an encoder-decoder structure for feature extraction and a classifier for classification tasks.
 # Author: LALAN KUMAR
 # Created: [08-01-2025]
-# Updated: [08-01-2025]
+# Updated: [14-04-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -13,12 +13,16 @@
 import tensorflow as tf
 from tensorflow.keras.layers import (Conv2D, Conv2DTranspose, MaxPool2D, BatchNormalization, 
                                      ReLU, GlobalAveragePooling2D, Dense)
+from tensorflow.keras.saving import register_keras_serializable
 from tensorflow.keras import Model
+import keras
 
-
+@keras.saving.register_keras_serializable(package="CustomModels")
 class HyperspectralAE(tf.keras.Model):
-    def __init__(self, in_channels, n_classes):
-        super(HyperspectralAE, self).__init__()
+    def __init__(self, in_channels, n_classes, **kwargs):
+        super(HyperspectralAE, self).__init__(**kwargs)
+        self.in_channels = in_channels
+        self.n_classes = n_classes
 
         # Encoder
         self.encoder = tf.keras.Sequential([
@@ -72,3 +76,19 @@ class HyperspectralAE(tf.keras.Model):
         decoded = self.decoder(encoded)
         classification = self.classifier(encoded)
         return decoded, classification
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "in_channels": self.in_channels,
+            "n_classes": self.n_classes
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            in_channels=config.pop("in_channels"),
+            n_classes=config.pop("n_classes"),
+            **config
+        )
