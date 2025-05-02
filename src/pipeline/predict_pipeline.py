@@ -1,22 +1,8 @@
-# ===================================================================================
-# Project: Hyperspectral Image Classification (HyperSpectral AI)
-# File: src/pipeline/predict_pipeline.py
-# Description: Orchestrates the complete Prediction pipeline for both CNN and AutoEncoder models
-# Author: LALAN KUMAR
-# Created: [07-01-2025]
-# Updated: [14-04-2025]
-# LAST MODIFIED BY: LALAN KUMAR
-# Version: 1.0.0
-# ===================================================================================
-
 import os
 import sys
-import argparse
 import numpy as np
-from dataclasses import dataclass
-from typing import Tuple, Dict, Union
-import tensorflow as tf
-from tensorflow.keras.models import load_model
+from scipy.io import loadmat
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
 # Dynamically add the project root directory to sys.path
 current_file_path = os.path.abspath(__file__)
@@ -26,182 +12,179 @@ if project_root not in sys.path:
 
 from src.exception import CustomException
 from src.logger import logging
-from src.utils import (
-    load_yaml,
-    get_predictions,
-    calculate_metrics,
-    get_classification_report,
-    plot_confusion_matrix,
-    visualize_predictions
-)
+from src.utils import load_yaml, extract_patches, load_transformer
 from src.components.data_ingestion import DataIngestion
-from src.components.data_transformation import DataTransformation, DataTransformationConfig
-from src.models.autoencoder_model import HyperspectralAE
+from src.components.data_transformation import DataTransformation
+from tensorflow.keras.models import load_model
 
-
-@dataclass
-class PredictionConfig:
-    """
-    Configuration class for prediction pipeline parameters
-    """
-    model_type: str = "cnn"
-    config_path: str = os.path.join(project_root, 'config/config.yaml')
-    visualize_results: bool = True
-    save_report: bool = False
 
 class PredictionPipeline:
-    def __init__(self, config: PredictionConfig):
-        self.config = config
-        self.model = None
-        self.transformer = None
-        self.label_values = []
-        self._initialize_components()
-
-    def _initialize_components(self):
-        """Load configuration, model and transformer"""
+    def __init__(self, config_path):
         try:
-            # Load base configuration
-            self.base_config = load_yaml(self.config.config_path)
-            
-            # Validate model type
-            if self.config.model_type.lower() not in ["cnn", "ae"]:
-                raise ValueError(f"Invalid model_type: {self.config.model_type}. Must be 'cnn' or 'ae'.")
-            
-            # Set model and transformer paths
-            model_type = self.config.model_type.lower()
-            self.model_path = self.base_config['model_trainer'][f'model_file_path_{model_type}']
-            self.transformer_path = self.base_config['transformation']['preprocessor_file_path'].replace(
-                '.pkl', f'_{model_type}.pkl')
-            
-            # Load components
-            self.model = load_model(self.model_path)
-            self.transformer = DataTransformation.load_transformer(self.transformer_path)
-            
-            logging.info(f"Successfully initialized {model_type.upper()} prediction pipeline")
-
+            self.config = load_yaml(config_path)
+            self.data_dir = self.config['data_dir']
+            self.model_path = self.config['model_trainer']['model_file_path']
+            self.transformer_path = self.config['transformation']['preprocessor_file_path']
+            logging.info("PredictionPipeline initialized with configuration from: %s", config_path)
         except Exception as e:
-            logging.error("Component initialization failed", exc_info=True)
+            logging.error("Error initializing PredictionPipeline.")
             raise CustomException(e, sys)
 
-    def _get_dataset_config(self, dataset_name: str) -> Dict:
-        """Retrieve dataset-specific configuration"""
-        for dataset in self.base_config['datasets']:
-            if dataset['name'] == dataset_name:
-                self.label_values = dataset['label_values']
-                return dataset
-        raise ValueError(f"Dataset {dataset_name} not found in configuration")
-
-    def prepare_data(self, dataset_name: str) -> Tuple[np.ndarray, np.ndarray]:
-        """Handle complete data preparation pipeline"""
+    def predict(self, dataset_name, image_data):
         try:
-            # Data Ingestion
-            data_ingestion = DataIngestion(
-                data_dir=self.base_config['data_dir'],
-                config_file=self.config.config_path
-            )
-            images, labels = data_ingestion.initiate_data_ingestion(dataset_name)
-            
-            # Data Transformation
-            transformation_config = DataTransformationConfig(
-                pca_components=self.base_config['transformation']['pca_components'],
-                patch_size=self.base_config['transformation']['patch_size'],
-                test_size=self.base_config['transformation']['test_size'],
-                batch_size=self.base_config['transformation']['batch_size'],
-                transformer_obj_file_path=self.base_config['transformation']['preprocessor_file_path'],
-                use_pca=(self.config.model_type == "cnn")
-            )
-            
-            data_transformation = DataTransformation(config=transformation_config)
-            _, test_dataset, _ = data_transformation.initiate_data_transformation(images, labels)
-            
-            return test_dataset, labels
+            logging.info(f"Starting prediction for dataset: {dataset_name}")
+
+            if not os.path.exists(self.model_path):
+                raise FileNotFoundError(f"Model file not found at path: {self.model_path}")
+
+            model = load_model(self.model_path)
+            logging.info("Model loaded successfully.")
+
+            transformer = DataTransformation.load_transformer(self.transformer_path)
+            logging.info("Transformer object loaded successfully.")
+
+            if not isinstance(image_data, np.ndarray):
+                raise ValueError("Input image data must be a numpy array.")
+            if image_data.ndim not in (2, 3):
+                raise ValueError(f"Input image data must be 2D or 3D. Got shape: {image_data.shape}")
+
+            if hasattr(transformer.pca, "components_"):
+                transformed_data = transformer.transform_input_data(image_data)
+            else:
+                raise ValueError("PCA object is not properly fitted in the transformer.")
+
+            patch_size = transformer.patch_size
+            patches, _ = extract_patches(transformed_data, labels=None, patch_size=patch_size)
+
+            if patches.ndim == 3:
+                patches = np.expand_dims(patches, axis=-1)
+            elif patches.ndim == 4:
+                pass
+            else:
+                raise ValueError(f"Unexpected patch shape: {patches.shape}")
+
+            predictions = model.predict(patches)
+            logging.info(f"Raw model predictions shape: {predictions.shape}")
+            logging.debug(f"Sample raw predictions:\n{predictions[:5]}")
+
+            dataset_config = next((ds for ds in self.config['datasets'] if ds['name'] == dataset_name), None)
+            if not dataset_config:
+                raise ValueError(f"Dataset configuration for '{dataset_name}' not found in config file.")
+            label_values = dataset_config['label_values']
+
+            decoded_predictions = [label_values[np.argmax(pred)] for pred in predictions]
+            prediction_indices = [np.argmax(pred) for pred in predictions]
+
+            logging.info("Prediction completed successfully.")
+            logging.info(f"Total predictions made: {len(decoded_predictions)}")
+            logging.info("Sample predictions:")
+            for i, pred in enumerate(decoded_predictions[:5]):
+                logging.info(f"Prediction {i + 1}: {pred}")
+
+            return decoded_predictions, prediction_indices
 
         except Exception as e:
-            logging.error("Data preparation failed", exc_info=True)
+            logging.error("Error during prediction.", exc_info=True)
             raise CustomException(e, sys)
 
-    def evaluate(self, test_dataset, label_image, dataset_name: str) -> Dict[str, Union[dict, str]]:
-        """Perform complete evaluation pipeline"""
-        try:
-            # Get predictions
-            y_true, y_pred, unique_classes, filtered_labels = get_predictions(
-                self.model, test_dataset, self.label_values, ae=(self.config.model_type == "ae")
-            )
-            
-            # Calculate metrics
-            metrics = calculate_metrics(y_true, y_pred)
-            report = get_classification_report(y_true, y_pred, unique_classes, filtered_labels)
-            
-            # Visualization
-            if self.config.visualize_results:
-                plot_confusion_matrix(y_true, y_pred, unique_classes, filtered_labels)
-                visualize_predictions(y_true, y_pred, title="True vs Pred")
-            
-            return {
-                'metrics': metrics,
-                'report': report,
-                'true_labels': y_true,
-                'pred_labels': y_pred
-            }
-
-        except Exception as e:
-            logging.error("Evaluation failed", exc_info=True)
-            raise CustomException(e, sys)
-
-    def run_pipeline(self, dataset_name: str):
-        """Execute complete prediction pipeline"""
-        try:
-            # Validate dataset
-            self._get_dataset_config(dataset_name)
-            
-            # Prepare data
-            test_dataset, label_image = self.prepare_data(dataset_name)
-            
-            # Perform evaluation
-            results = self.evaluate(test_dataset, label_image=label_image, dataset_name=dataset_name)
-            
-            # Print results
-            print(f"\n{'='*40} Results {'='*40}")
-            print(f"Model Type: {self.config.model_type.upper()}")
-            print(f"Dataset: {dataset_name}")
-            print("\n📈 Metrics:")
-            for metric, value in results['metrics'].items():
-                print(f"{metric.capitalize()}: {value:.4f}")
-            
-            print("\n📝 Classification Report:")
-            print(results['report'])
-            
-            return results
-
-        except Exception as e:
-            logging.error("Prediction pipeline failed", exc_info=True)
-            raise CustomException(e, sys)
 
 if __name__ == "__main__":
     try:
-        parser = argparse.ArgumentParser(description="Hyperspectral Image Classification Prediction Pipeline")
-        parser.add_argument("--model", type=str, choices=["cnn", "ae"], default="cnn",
-                          help="Model type to use for prediction")
-        parser.add_argument("--dataset", type=str, required=True,
-                          help="Name of the dataset to process (must exist in config.yaml)")
-        parser.add_argument("--no-vis", action="store_false", dest="visualize",
-                          help="Disable visualization of results")
-        
-        args = parser.parse_args()
-        
-        # Initialize prediction pipeline
-        pred_config = PredictionConfig(
-            model_type=args.model,
-            visualize_results=args.visualize
-        )
-        
-        pipeline = PredictionPipeline(pred_config)
-        results = pipeline.run_pipeline(args.dataset)
-        
-        print("\n✅ Prediction pipeline completed successfully")
+        CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../config/config.yaml'))
+        DATASET_NAME = "Botswana"
 
+        if not os.path.exists(CONFIG_FILE):
+            raise FileNotFoundError(f"Config file not found at path: {CONFIG_FILE}")
+
+        logging.info("Initializing PredictionPipeline with config file: %s", CONFIG_FILE)
+
+        input_image_data = loadmat("DATA/Botswana/Botswana.mat")
+        image_data = input_image_data.get('Botswana')
+
+        if image_data is None:
+            raise ValueError("The required image data is not found in the .mat file. Check the key name or file structure.")
+
+        logging.info("Loaded image data shape: %s", image_data.shape)
+
+        if image_data.ndim not in (2, 3):
+            raise ValueError(f"Input image data must be 2D or 3D. Got shape: {image_data.shape}")
+
+        # Load ground truth labels
+        gt_data = loadmat("DATA/Botswana/Botswana_gt.mat")
+        ground_truth = gt_data.get('Botswana_gt')
+
+        if ground_truth is None:
+            raise ValueError("Ground truth labels not found in the .mat file. Check the key name.")
+
+        if ground_truth.shape != image_data.shape[:2]:
+            raise ValueError("Shape mismatch between image data and ground truth labels.")
+
+        # Initialize pipeline
+        prediction_pipeline = PredictionPipeline(CONFIG_FILE)
+
+        # Predict
+        decoded_preds, pred_indices = prediction_pipeline.predict(dataset_name=DATASET_NAME, image_data=image_data)
+
+        # Get patch size from config
+        patch_size = prediction_pipeline.config['transformation']['patch_size']
+
+        # Extract ground truth patches
+        input_patches, label_patches = extract_patches(image_data, labels=ground_truth, patch_size=patch_size)
+        labels_flat=label_patches.flatten()
+        
+        transformer=load_transformer("artifacts/preprocessor.pkl")
+
+        # Optional: remove ignored or background class (e.g., 0)
+        valid_mask = labels_flat > 0
+        true_labels = labels_flat[valid_mask]
+        input_patches=input_patches[valid_mask]
+
+        transformed_data=transformer.transform_input_data(input_patches)
+        
+        if transformed_data.ndim==3:
+            transformed_data=np.expand_dims(transformed_data, axis=-1)
+            
+        predictions=model.pre
+        
+
+        # Evaluation
+        accuracy = accuracy_score(true_labels, pred_labels)
+        precision = precision_score(true_labels, pred_labels, average='weighted', zero_division=0)
+        recall = recall_score(true_labels, pred_labels, average='weighted', zero_division=0)
+        f1 = f1_score(true_labels, pred_labels, average='weighted', zero_division=0)
+        report = classification_report(true_labels, pred_labels)
+
+        logging.info("\n=== FINAL EVALUATION RESULTS ===")
+        logging.info(f"Accuracy: {accuracy:.4f}")
+        logging.info(f"Precision: {precision:.4f}")
+        logging.info(f"Recall: {recall:.4f}")
+        logging.info(f"F1 Score: {f1:.4f}")
+        logging.info("\nClassification Report:\n%s", report)
+
+        print("\nEvaluation Metrics:")
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+        print(f"F1 Score: {f1:.4f}")
+        print("\nClassification Report:")
+        print(report)
+
+    except CustomException as ce:
+        logging.error(f"CustomException occurred: {ce}")
+    except FileNotFoundError as fnfe:
+        logging.error(f"FileNotFoundError: {fnfe}")
+    except ValueError as ve:
+        logging.error(f"ValueError: {ve}")
     except Exception as e:
-        print(f"\n❌ Prediction pipeline failed: {str(e)}")
-        sys.exit(1)
+        logging.error(f"Unexpected error: {e}")
+
+
+
+
+
+
+
+
+
 
 

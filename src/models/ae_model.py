@@ -1,11 +1,11 @@
 # ===================================================================================
 # Project: Hyperspectral Image Classification (HyperSpectral AI)
 # File: src/models/autoencoder_model.py
-# Description: This module defines the architecture of a Autoencoder model for hyperspectral data.
+# Description: This file defines the architecture of a Autoencoder model for hyperspectral data.
 #              It includes an encoder-decoder structure for feature extraction and a classifier for classification tasks.
 # Author: LALAN KUMAR
 # Created: [08-01-2025]
-# Updated: [14-04-2025]
+# Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -92,3 +92,20 @@ class HyperspectralAE(tf.keras.Model):
             n_classes=config.pop("n_classes"),
             **config
         )
+
+def build_ae_model(in_channels, n_classes,learning_rate):
+    model = HyperspectralAE(in_channels, n_classes)
+    recon_loss="mse"
+    class_loss="sparse_categorical_crossentropy"
+    recon_weight=0.5
+    class_weight=0.5
+    optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    metrics=["mse","accuracy"]
+    model.compile(
+        optimizer=optimizer,
+        loss=[recon_loss, class_loss],
+        loss_weights=[recon_weight, class_weight],
+        metrics=metrics
+    )
+    #print(model.summary())
+    return model

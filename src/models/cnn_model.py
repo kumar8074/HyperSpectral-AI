@@ -5,11 +5,12 @@
 #              It includes multiple convolutional layers, batch normalization, and fully connected layers.
 # Author: LALAN KUMAR
 # Created: [08-01-2025]
-# Updated: [08-01-2025]
+# Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
 
+import tensorflow as tf
 from tensorflow.keras import models, layers
 
 # CNN Model for Hyperspectral Data
@@ -63,4 +64,13 @@ def HyperspectralCNN(in_channels, n_classes):
     model.add(layers.Dense(1024, activation='relu'))
     model.add(layers.Dense(n_classes, activation='softmax'))
 
+    return model
+
+def build_cnn_model(in_channels, n_classes,learning_rate):
+    model = HyperspectralCNN(in_channels, n_classes)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        metrics=[tf.keras.metrics.SparseCategoricalAccuracy()]
+    )
     return model

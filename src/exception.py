@@ -1,12 +1,12 @@
 # ===================================================================================
 # Project: Hyperspectral Image Classification (HyperSpectral AI)
 # File: src/exception.py
-# Description: This module defines a custom exception class for handling errors in the
+# Description: This file defines a custom exception class for handling errors in the
 #              hyperspectral image classification project. It provides a detailed error
 #              message that includes the file name, line number, and the actual error message.
 # Author: LALAN KUMAR
-# Created: [08-01-2025]
-# Updated: [08-01-2025]
+# Created: [07-01-2025]
+# Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
@@ -30,8 +30,7 @@ def error_message_detail(error,error_detail:sys):
     )
     return error_message
     
-    
-    
+     
 class CustomException(Exception):
     def __init__(self, error_message, error_detail:sys):
         super().__init__(error_message)

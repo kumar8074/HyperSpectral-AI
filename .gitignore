@@ -1,3 +1,4 @@
 DATA/
 logs/
 artifacts/
+__pycache__/

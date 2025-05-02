@@ -1,42 +1,31 @@
 # ===================================================================================
 # Project: Hyperspectral Image Classification (HyperSpectral AI)
 # File: src/utils.py
-# Description: This script contains utility functions for loading and preprocessing hyperspectral
-#              data, applying PCA, extracting patches, normalizing data, and splitting datasets.
-#              It also includes functions for model training, evaluation, and saving/loading objects.
+# Description: This file contains the various utility functions used in the hyperspectral image classification project.
 # Author: LALAN KUMAR
-# Created: [08-01-2025]
-# Updated: [14-04-2025]
+# Created: [07-01-2025]
+# Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
 
 import os
-import scipy.io as sio
-import sys
 import yaml
-import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-import pickle
+import scipy.io as sio
 import logging
-import seaborn as sns
-from sklearn.metrics import (classification_report, confusion_matrix, accuracy_score, 
-                             precision_score, recall_score, f1_score)
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-from matplotlib.colors import ListedColormap, BoundaryNorm
-from tensorflow.keras.optimizers import Adam, SGD, RMSprop
-from tensorflow.keras.losses import SparseCategoricalCrossentropy, CategoricalCrossentropy
-from tensorflow.keras.metrics import Accuracy, Precision, Recall, SparseCategoricalAccuracy
-from tensorflow.keras.callbacks import ModelCheckpoint
+from sklearn.decomposition import PCA
+import numpy as np
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+import pickle
+import sys
 
-from src.logger import logging  # Logging setup
-from src.exception import CustomException  # Custom exception class
+from .logger import logging as project_logger
+from .exception import CustomException
 
-# Function to load the configuration from a YAML file
+################################ USED IN DATA INGESTION ################################
+
+# Load a YAML file from the given file path
 def load_yaml(file_path):
     """
     Load a YAML file from the given file path.
@@ -55,9 +44,7 @@ def load_yaml(file_path):
     
     return data
 
-
-#################### UTILIZED IN DATA INGESTION ############################
-# Function to load the Hyperspectral data
+# Load hyperspectral data and labels from .mat files
 def load_hyperspectral_data(data_dir, dataset_name, config):
     """
     Load hyperspectral data and labels from .mat files.
@@ -95,7 +82,7 @@ def load_hyperspectral_data(data_dir, dataset_name, config):
 
     # Load the image data
     image_data = sio.loadmat(os.path.join(dataset_path, image_file))
-    #print(f"Keys in the image file '{image_file}':", image_data.keys())
+    project_logger.debug(f"Keys in the image file '{image_file}': {image_data.keys()}")
     
     # Extract the image data using the specified key
     images = image_data.get(image_key)
@@ -105,7 +92,7 @@ def load_hyperspectral_data(data_dir, dataset_name, config):
     
     # Load the label data
     label_data = sio.loadmat(os.path.join(dataset_path, label_file))
-    #print(f"Keys in the label file '{label_file}':", label_data.keys())
+    project_logger.debug(f"Keys in the label file '{label_file}': {label_data.keys()}")
     
     # Extract the label data using the specified key
     labels = label_data.get(label_key)
@@ -114,15 +101,16 @@ def load_hyperspectral_data(data_dir, dataset_name, config):
         raise KeyError(f"Label data not found in the key '{label_key}' in the file {label_file}.")
     
     # Output shapes and return the data
-    #print(f"Image shape: {images.shape}")
-    #print(f"Label shape: {labels.shape}")
-    #print(f"Unique labels: {set(labels.flatten())}")
+    project_logger.debug(f"Loaded Image shape: {images.shape}")
+    project_logger.debug(f"Loaded Label shape: {labels.shape}")
+    project_logger.debug(f"Unique labels: {set(labels.flatten())}")
 
     return images, labels
-#################### UTILIZED IN DATA INGESTION ############################
 
+################################ USED IN DATA INGESTION ############################################
 
-#################### UTILIZED IN DATA TRANSFORMATION ############################
+################################ USED IN DATA TRANSFORMATION ########################################
+
 # Applies PCA to the hyperspectral data (only used for CNN Based Approach)
 def apply_pca(images, n_components):
     """
@@ -246,7 +234,6 @@ def normalize_patches(patches, method='pca_output'): # For AE use per_band.
         raise ValueError(f"Unknown normalization method: {method}")
 
 
-
 # Saves the transformer object
 def save_object(file_path, obj):
     """
@@ -262,14 +249,9 @@ def save_object(file_path, obj):
         
         with open(file_path, "wb") as file_obj:
             pickle.dump(obj, file_obj)
-        
-        #logging.info(f"Object saved at {file_path}.")
     except Exception as e:
-        #logging.error(f"Failed to save object at {file_path}: {e}")
         raise CustomException(e,sys)
-    
-    
-    
+
 # Splits the data into training and testing sets
 def preprocess_and_split(patches, labels, test_size=0.2, batch_size=32,ae=False):
     """
@@ -284,36 +266,27 @@ def preprocess_and_split(patches, labels, test_size=0.2, batch_size=32,ae=False)
     Returns:
         train_dataset, test_dataset: TensorFlow datasets for training and testing.
     """
+    if patches.shape[0] != labels.shape[0]:
+        raise ValueError("Mismatch between patches and labels.")
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        patches, labels, test_size=test_size, stratify=labels, random_state=42
+    )
+
     if ae:
-        if patches.shape[0] != labels.shape[0]:
-            raise ValueError("Mismatch between patches and labels.")
-        
-        
-        X_train, X_val, y_train, y_val = train_test_split(
-            patches, labels, test_size=test_size, stratify=labels, random_state=42
-        )
-        
         train_dataset = tf.data.Dataset.from_tensor_slices((X_train, (X_train, y_train)))
-        test_dataset = tf.data.Dataset.from_tensor_slices((X_val, (X_val, y_val)))
-
-        train_dataset = train_dataset.shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        test_dataset = test_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, (X_test, y_test)))
         logging.info("AutoEncoder Workflow TF datasets successfully created.")
-        
     else:
-        if patches.shape[0] != labels.shape[0]:
-            raise ValueError("Mismatch between patches and labels.")
-        
-        X_train, X_test, y_train, y_test = train_test_split(
-            patches, labels, test_size=test_size, random_state=42, stratify=labels
-        )
-        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+        test_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
         logging.info("CNN Workflow TF datasets successfully created.")
-        
-    
-    return train_dataset, test_dataset
 
+
+    train_dataset = train_dataset.shuffle(len(y_train)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    test_dataset = test_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    
+    return train_dataset, test_dataset, X_train, X_test, y_train, y_test
 
 # Loads the transformer object
 def load_transformer(transformer_path):
@@ -341,92 +314,10 @@ def load_transformer(transformer_path):
     except Exception as e:
         logging.error(f"Error occurred while loading transformer object: {e}")
         raise CustomException(e, sys)
-#################### UTILIZED IN DATA TRANSFORMATION ############################
 
+################################ USED IN DATA TRANSFORMATION ########################################
 
-#################### UTILIZED IN MODEL TRAINER ##################################
-def get_optimizer(optimizer_name):
-    """
-    Get the optimizer by name.
-    
-    Args:
-        optimizer_name (str): The name of the optimizer to use.
-        
-    Returns:
-        The TensorFlow optimizer class.
-    """
-
-    optimizer_dict = {
-        'adam': tf.keras.optimizers.Adam,
-        'sgd': tf.keras.optimizers.SGD,
-        'rmsprop': tf.keras.optimizers.RMSprop,
-        'adagrad': tf.keras.optimizers.Adagrad,
-        'adadelta': tf.keras.optimizers.Adadelta,
-        'adamax': tf.keras.optimizers.Adamax,
-        'nadam': tf.keras.optimizers.Nadam
-    }
-    
-    if optimizer_name.lower() not in optimizer_dict:
-        raise ValueError(f"Optimizer '{optimizer_name}' not supported. Available options: {list(optimizer_dict.keys())}")
-    
-    return optimizer_dict[optimizer_name.lower()]
-
-
-def get_loss(loss_name):
-    """
-    Get the loss function by name.
-    
-    Args:
-        loss_name (str): The name of the loss function to use.
-        
-    Returns:
-        The TensorFlow loss function.
-    """
-    
-    loss_dict = {
-        'categorical_crossentropy': tf.keras.losses.CategoricalCrossentropy,
-        'sparse_categorical_crossentropy': tf.keras.losses.SparseCategoricalCrossentropy,
-        'binary_crossentropy': tf.keras.losses.BinaryCrossentropy,
-        'mse': tf.keras.losses.MeanSquaredError,
-        'mae': tf.keras.losses.MeanAbsoluteError,
-        'huber': tf.keras.losses.Huber,
-        'kullback_leibler_divergence': tf.keras.losses.KLDivergence
-    }
-    
-    if loss_name.lower() not in loss_dict:
-        raise ValueError(f"Loss function '{loss_name}' not supported. Available options: {list(loss_dict.keys())}")
-    
-    return loss_dict[loss_name.lower()]()
-
-
-def get_metric(metric_name):
-    """
-    Get the metric by name.
-    
-    Args:
-        metric_name (str): The name of the metric to use.
-        
-    Returns:
-        The TensorFlow metric object.
-    """
-    
-    metric_dict = {
-        'accuracy': tf.keras.metrics.SparseCategoricalAccuracy,
-        'sparse_categorical_accuracy': tf.keras.metrics.SparseCategoricalAccuracy,
-        'categorical_accuracy': tf.keras.metrics.CategoricalAccuracy,
-        'precision': tf.keras.metrics.Precision,
-        'recall': tf.keras.metrics.Recall,
-        'auc': tf.keras.metrics.AUC,
-        'mae': tf.keras.metrics.MeanAbsoluteError,
-        'mse': tf.keras.metrics.MeanSquaredError
-    }
-    
-    if metric_name.lower() not in metric_dict:
-        raise ValueError(f"Metric '{metric_name}' not supported. Available options: {list(metric_dict.keys())}")
-    
-    return metric_dict[metric_name.lower()]()
-
-
+################################ USED IN MODEL TRAINING #############################################
 def train_model(model, train_dataset, test_dataset, save_model_path, epochs, callbacks=None):
     """
     Train a TensorFlow model.
@@ -460,19 +351,6 @@ def train_model(model, train_dataset, test_dataset, save_model_path, epochs, cal
                 save_weights_only=False,
                 verbose=1
             ),
-            # Reduce learning rate when a metric has stopped improving
-            tf.keras.callbacks.ReduceLROnPlateau(
-                monitor='val_loss',
-                factor=0.5,
-                patience=5,
-                min_lr=1e-6,
-                verbose=1
-            ),
-            # TensorBoard for visualizing training progress
-            tf.keras.callbacks.TensorBoard(
-                log_dir=os.path.join(os.path.dirname(save_model_path), 'tensorboard_logs'),
-                histogram_freq=1
-            )
         ]
     
     # Train the model
@@ -491,131 +369,11 @@ def train_model(model, train_dataset, test_dataset, save_model_path, epochs, cal
         logging.info(f"Model saved to {save_model_path}")
     
     return history
-#################### UTILIZED IN MODEL TRAINER ##################################  
 
-
-#################### UTILIZED IN MODEL EVALUATION ##################################
-def get_predictions(model, dataset, label_values, ae=False): # label_values is a list of class names for specific dataset(present in config.yaml)
-    """Makes predictions on a CNN or AutoEncoder+Classifier model
-
-    Args:
-        model: Trained TensorFlow model.
-        dataset: tf.data.Dataset object with batches.
-        label_values: List of label names corresponding to class indices.
-        ae (bool, optional): If True, evaluates AutoEncoder+Classifier. If False, evaluates CNN. Defaults to False.
-    """
-    if ae:
-        # AutoEncoder + Classifier
-        reconstructions, predictions = model.predict(dataset)
-        y_pred = np.argmax(predictions, axis=1)
-        y_true = np.concatenate([y for _, (_, y) in dataset], axis=0)
-    else:
-        # CNN
-        X_test, y_true = next(iter(dataset.unbatch().batch(len(dataset))))
-        predictions = model.predict(X_test)
-        y_pred = np.argmax(predictions, axis=-1)
-
-    unique_classes = np.unique(y_true)
-    filtered_label_values = [label_values[i] for i in unique_classes]
-    return y_true, y_pred, unique_classes, filtered_label_values
-
-def calculate_metrics(y_true, y_pred):
-    """
-    Calculate classification metrics.
-
-    Args:
-        y_true (ndarray): True labels.
-        y_pred (ndarray): Predicted labels.
-
-    Returns:
-        dict: Dictionary containing accuracy, precision, recall, and F1 score.
-    """
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
-    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
-    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
-    
-    logging.info(f"Accuracy: {accuracy:.4f}")
-    logging.info(f"Precision: {precision:.4f}")
-    logging.info(f"Recall: {recall:.4f}")
-    logging.info(f"F1 Score: {f1:.4f}")
-
-    return {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1
-    }
-    
-def get_classification_report(y_true, y_pred, unique_classes, filtered_label_values):
-    """
-    Generate a classification report.
-
-    Args:
-        y_true (ndarray): True labels.
-        y_pred (ndarray): Predicted labels.
-        unique_classes (ndarray): Unique class indices.
-        filtered_label_values (list): Filtered label values corresponding to unique classes.
-
-    Returns:
-        str: Classification report as a string.
-    """
-    report = classification_report(y_true, y_pred, labels=unique_classes, target_names=filtered_label_values, digits=4)
-    logging.info(f"Classification Report:\n{report}")
-    return report
-
-def plot_confusion_matrix(y_true, y_pred, unique_classes, filtered_label_values):
-    """
-    Plot the confusion matrix.
-
-    Args:
-        y_true (ndarray): True labels.
-        y_pred (ndarray): Predicted labels.
-        unique_classes (ndarray): Unique class indices.
-    """
-    cm = confusion_matrix(y_true, y_pred, labels=unique_classes)
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=filtered_label_values, yticklabels=filtered_label_values)
-    plt.xlabel('Predicted Labels')
-    plt.ylabel('True Labels')
-    plt.title('Confusion Matrix')
-    plt.show()
+################################ USED IN MODEL TRAINING #############################################
     
 
-def visualize_predictions(predicted_labels, true_labels, title, save_path=None):
-    print(f"[DEBUG] Predicted labels shape: {predicted_labels.shape}")
-    print(f"[DEBUG] True labels shape: {true_labels.shape}")
 
-    # Determine number of classes
-    num_classes = int(max(np.max(predicted_labels), np.max(true_labels)) + 1)
-    print(f"[DEBUG] Number of classes detected: {num_classes}")
 
-    # Generate a colormap with exactly num_classes colors
-    base_cmap = cm.get_cmap('nipy_spectral', num_classes)
-    colors = [base_cmap(i) for i in range(num_classes)]
-    colors[0] = (0, 0, 0, 1.0)  # Make class 0 black (usually background/unlabeled)
 
-    cmap = ListedColormap(colors)
-    norm = BoundaryNorm(boundaries=np.arange(-0.5, num_classes + 0.5, 1), ncolors=num_classes)
 
-    # Plot predictions
-    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-    im0 = axs[0].imshow(true_labels, cmap=cmap, norm=norm)
-    axs[0].set_title('True Labels')
-    axs[0].axis('off')
-
-    im1 = axs[1].imshow(predicted_labels, cmap=cmap, norm=norm)
-    axs[1].set_title(title)
-    axs[1].axis('off')
-
-    fig.colorbar(im1, ax=axs, orientation='horizontal', fraction=0.05, pad=0.04)
-
-    if save_path:
-        plt.savefig(save_path)
-        print(f"[INFO] Visualization saved to: {save_path}")
-    else:
-        plt.show()
-
-    plt.close(fig)
-#################### UTILIZED IN MODEL EVALUATION ##################################
