@@ -3,18 +3,27 @@
 # File: src/components/data_ingestion.py
 # Description: This file contains the data ingestion component of the hyperspectral image classification project.
 # Author: LALAN KUMAR
-# Created: [07-01-2025]
+# Created: [08-01-2025]
 # Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
 
+"""Data Ingestion component for loading hyperspectral datasets.
+
+This script defines the DataIngestion class responsible for reading dataset
+configuration and loading image and label data from specified files.
+It can also be run as a standalone script to ingest a specific dataset.
+"""
+
 import os
 import sys
 import argparse
 from dataclasses import dataclass
+import numpy as np
 
 # Dynamically add the project root directory to sys.path
+# This allows importing modules from the 'src' directory
 current_file_path = os.path.abspath(__file__)
 project_root = os.path.abspath(os.path.join(current_file_path, "../../.."))
 if project_root not in sys.path:
@@ -27,14 +36,19 @@ from src.logger import logging  # Logging setup
 
 @dataclass
 class DataIngestionConfig:
-    """
-    Configuration class for defining paths used during data ingestion.
-    """
+    """Configuration class for defining paths used during data ingestion."""
     data_dir: str  # Root directory containing datasets
     config_file: str  # Path to the configuration YAML file
 
 class DataIngestion:
+    """Handles the process of reading and loading hyperspectral data."""
     def __init__(self, data_dir: str, config_file: str):
+        """Initializes the DataIngestion component.
+
+        Args:
+            data_dir (str): The root directory containing the datasets.
+            config_file (str): The path to the main configuration YAML file.
+        """
         self.ingestion_config = DataIngestionConfig(
             data_dir=data_dir,
             config_file=config_file
@@ -43,35 +57,30 @@ class DataIngestion:
     def initiate_data_ingestion(self, dataset_name: str):
         """
         Initiates the data ingestion process by loading the specified dataset.
-
         Args:
             dataset_name (str): The name of the dataset to load.
-
         Returns:
-            tuple: A tuple containing the loaded images and labels.
+            tuple: A tuple containing the loaded images and labels (as numpy arrays).
         """
-        logging.info("Starting data ingestion for dataset: %s", dataset_name)
+        logging.info(f"[DataIngestion] Starting data ingestion for dataset: {dataset_name}")
         try:
-            # Load configuration from the YAML file
-            logging.info("Loading configuration from: %s", self.ingestion_config.config_file)
+            logging.info(f"[DataIngestion] Loading configuration from: {self.ingestion_config.config_file}")
             config = load_yaml(self.ingestion_config.config_file)
-
-            # Load the specified dataset
-            logging.info("Loading dataset: %s", dataset_name)
+            logging.info(f"[DataIngestion] Loading dataset: {dataset_name}")
             images, labels = load_hyperspectral_data(
                 data_dir=self.ingestion_config.data_dir,
                 dataset_name=dataset_name,
                 config=config
             )
-
-            logging.info("Successfully loaded dataset: %s", dataset_name)
-            return images, labels
-
+            logging.info(f"[DataIngestion] Images loaded with shape: {images.shape}, dtype: {images.dtype}")
+            logging.info(f"[DataIngestion] Labels loaded with shape: {labels.shape}, dtype: {labels.dtype}")
+            logging.info(f"[DataIngestion] Successfully loaded dataset: {dataset_name}")
+            return np.array(images), np.array(labels)
         except FileNotFoundError as fnfe:
-            logging.error("File not found: %s", fnfe)
+            logging.error(f"[DataIngestion] File not found: {fnfe}")
             raise CustomException(fnfe, sys)
         except Exception as e:
-            logging.error("Error during data ingestion for dataset: %s", dataset_name)
+            logging.error(f"[DataIngestion] Error during data ingestion for dataset: {dataset_name} - {str(e)}")
             raise CustomException(e, sys)
 
 # Example usage:

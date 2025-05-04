@@ -1,7 +1,7 @@
 # ===================================================================================
 # Project: Hyperspectral Image Classification (HyperSpectral AI)
 # File: src/components/model_trainer.py
-# Description: This module handles the model training process.
+# Description: This module handles the model training process dynamically selecting between CNN and Autoencoder models.
 #              It orchestrates data loading, transformation, model building, and training.
 # Author: LALAN KUMAR
 # Created: [08-01-2025]
@@ -10,11 +10,21 @@
 # Version: 1.0.0
 # ===================================================================================
 
+"""Model Training component for building and training classification models.
+
+Dynamically selects between CNN and Autoencoder models based on configuration.
+Orchestrates data loading, transformation (if run standalone), model building,
+and training process.
+"""
+
 import os
 import sys
+import pickle
+from dataclasses import dataclass
+
 import numpy as np
 import tensorflow as tf
-from dataclasses import dataclass
+from tensorflow import keras
 
 # Dynamically add the project root directory to sys.path
 current_file_path = os.path.abspath(__file__)
@@ -26,13 +36,22 @@ from src.components.data_ingestion import DataIngestion
 from src.components.data_transformation import DataTransformation, DataTransformationConfig
 from src.exception import CustomException
 from src.logger import logging
-from src.utils import load_yaml, train_model # Assuming train_model handles saving
-# Import model building functions (adjust paths/names as needed)
+from src.utils import load_yaml, train_model, save_object
+# Import model building functions
 from src.models.cnn_model import build_cnn_model
 from src.models.ae_model import build_ae_model
 
 @dataclass
 class ModelTrainerConfig:
+    """Configuration object for the ModelTrainer.
+
+    Attributes:
+        trained_model_file_path (str): Path to save the trained model.
+        model_name (str): Name of the model to train (CNN or AE).
+        learning_rate (float): Learning rate for the model.
+        epochs (int): Number of epochs to train the model.
+        patch_size (int): Size of the patches to use for training.
+    """
     trained_model_file_path: str
     model_name: str
     learning_rate: float
@@ -40,72 +59,80 @@ class ModelTrainerConfig:
     patch_size: int
 
 class ModelTrainer:
+    """Handles the building, training, and saving of the selected model."""
     def __init__(self, config: ModelTrainerConfig):
+        """Initializes the ModelTrainer component.
+
+        Args:
+            config (ModelTrainerConfig): Configuration object for the trainer.
+        """
         self.trainer_config = config
         logging.info(f"ModelTrainer initialized for model: {self.trainer_config.model_name}")
+        
+        # Ensure the model directory exists
+        model_dir = os.path.dirname(self.trainer_config.trained_model_file_path)
+        os.makedirs(model_dir, exist_ok=True)
 
     def initiate_model_training(self, train_dataset, test_dataset, num_features, num_classes):
-        """Builds and trains the model using preprocessed data."""
-        logging.info("Initiating model building and training...")
+        """Builds and trains the model using preprocessed data, with robust logging, callbacks, and artifact management."""
+        logging.info("[ModelTrainer] Initiating model building and training...")
         try:
-            # --- 3. Model Building ---
-            logging.info("--- Step 3: Model Building ---")
-            
-            # Input shape uses patch_size from the config object
+            # Step 1: Model Building
             input_shape = (self.trainer_config.patch_size, self.trainer_config.patch_size, num_features)
-            logging.info(f"Using input shape: {input_shape}, Num features: {num_features}, Num classes: {num_classes}")
-
+            logging.info(f"[ModelTrainer] Using input shape: {input_shape}, Num features: {num_features}, Num classes: {num_classes}")
             model = None
-            # Use model_name from the config object
             if self.trainer_config.model_name == 'cnn':
                 if num_classes <= 1:
-                     raise ValueError("Cannot train CNN: Not enough classes found in labels.")
-                logging.info(f"Building CNN model.")
+                    raise ValueError("Cannot train CNN: Not enough classes found in labels.")
+                logging.info("[ModelTrainer] Building CNN model.")
                 model = build_cnn_model(
-                    in_channels=num_features, 
-                    n_classes=num_classes, 
+                    in_channels=num_features,
+                    n_classes=num_classes,
                     learning_rate=self.trainer_config.learning_rate
                 )
+                monitor_metric='val_sparse_categorical_accuracy'
             elif self.trainer_config.model_name == 'ae':
-                 # AE might still use num_classes for a potential classification layer
-                logging.info(f"Building Autoencoder model.")
+                logging.info("[ModelTrainer] Building Autoencoder model.")
                 model = build_ae_model(
-                    in_channels=num_features, 
-                    n_classes=num_classes, # AE might use this for a classification head
-                    # Use learning_rate from the config object
-                    learning_rate=self.trainer_config.learning_rate 
+                    in_channels=num_features,
+                    n_classes=num_classes,
+                    learning_rate=self.trainer_config.learning_rate
                 )
+                monitor_metric='val_classifier_accuracy'
             else:
-                # Use model_name from the config object
-                raise ValueError(f"Unsupported model type: {self.trainer_config.model_name}")
-            
-            if model is None:
-                raise RuntimeError("Model building failed.")
-            # Model is compiled within the build functions
-            model.summary(print_fn=logging.info) # Log model summary
-
-            # --- 4. Model Training ---
-            logging.info("--- Step 4: Model Training ---")
+                monitor_metric='val_loss'
+                raise ValueError(f"Unknown model type: {self.trainer_config.model_name}")
+                
+            # Step 2: Train the model using train_model function from utils
+            logging.info("[ModelTrainer] Starting model training...")
             history = train_model(
                 model=model,
                 train_dataset=train_dataset,
                 test_dataset=test_dataset,
-                # Use save path from the config object
                 save_model_path=self.trainer_config.trained_model_file_path,
-                # Use epochs from the config object
-                epochs=self.trainer_config.epochs
+                epochs=self.trainer_config.epochs,
+                monitor_metric=monitor_metric
             )
-            # Use save path from the config object
-            logging.info(f"Model training completed. Model saved to {self.trainer_config.trained_model_file_path}")
-            final_val_accuracy = history.history.get('val_accuracy', [None])[-1]
-            final_val_loss = history.history.get('val_loss', [None])[-1]
-            logging.info(f"Final validation loss: {final_val_loss}")
-            logging.info(f"Final validation accuracy: {final_val_accuracy}")
-
+            
+            logging.info(f"[ModelTrainer] Model saved to {self.trainer_config.trained_model_file_path}")
+            
+            # Save training history separately with model-specific name using save_object utility
+            if history and hasattr(history, 'history'):
+                history_path = self.trainer_config.trained_model_file_path.replace('.keras', f'_{self.trainer_config.model_name}_history.pkl')
+                save_object(file_path=history_path, obj=history.history)
+                logging.info(f"[ModelTrainer] Training history saved to {history_path}")
+            
+            # Log final metrics if history contains them
+            if history and hasattr(history, 'history'):
+                final_val_accuracy = history.history.get('val_accuracy', [None])[-1]
+                final_val_loss = history.history.get('val_loss', [None])[-1]
+                logging.info(f"Final validation loss: {final_val_loss}")
+                logging.info(f"Final validation accuracy: {final_val_accuracy}")
+            
             logging.info("Model training process finished successfully.")
-             # Use save path from the config object
+            
             return self.trainer_config.trained_model_file_path
-
+            
         except ValueError as e:
             logging.error(f"Configuration or data validation error during model build/train: {e}")
             raise CustomException(e, sys)
@@ -163,7 +190,7 @@ if __name__ == "__main__":
 
         logging.info("--- Step 2b: Running Data Transformation ---")
         data_transformation = DataTransformation(config=transformation_config_obj) # Pass the object
-        train_dataset, test_dataset, transformer, X_train, X_test, y_train, y_test = data_transformation.initiate_data_transformation(images, labels)
+        train_dataset, test_dataset, X_train, X_test, y_train, y_test, transformer = data_transformation.initiate_data_transformation(images, labels)
         logging.info("Data Transformation successful.")
 
         # --- 3. Determine Features and Classes ---
@@ -184,10 +211,6 @@ if __name__ == "__main__":
         model_filename = f"{model_name}_model.keras" 
         model_save_path = config['model_trainer']['model_save_path']
         trained_model_file_path = os.path.join(model_save_path, model_filename)
-        
-        # --- Ensure the target directory for the model exists ---
-        model_dir = os.path.dirname(model_save_path)
-        os.makedirs(model_dir, exist_ok=True)
         
         # Create the ModelTrainerConfig object
         trainer_config_obj = ModelTrainerConfig(
@@ -226,5 +249,3 @@ if __name__ == "__main__":
     except Exception as e:
         logging.exception(f"An unexpected error occurred during script execution: {e}")
         print(f" An unexpected error occurred: {e}")
-
-

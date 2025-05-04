@@ -10,13 +10,18 @@
 # Version: 1.0.0
 # ===================================================================================
 
+"""Defines the Convolutional Neural Network (CNN) model architecture.
+
+Includes functions to build the Keras layers and compile the final model.
+"""
+
 import tensorflow as tf
 from tensorflow.keras import models, layers
 
 # CNN Model for Hyperspectral Data
-def HyperspectralCNN(in_channels, n_classes):
+def hyperspectral_cnn(in_channels, n_classes):
     """
-    TensorFlow implementation of the HyperspectralCNN model.
+    Builds the TensorFlow Keras layers for the Hyperspectral CNN model.
 
     Args:
         in_channels (int): Number of input channels (e.g., 145 for hyperspectral data).
@@ -66,11 +71,22 @@ def HyperspectralCNN(in_channels, n_classes):
 
     return model
 
-def build_cnn_model(in_channels, n_classes,learning_rate):
-    model = HyperspectralCNN(in_channels, n_classes)
+def build_cnn_model(in_channels, n_classes, learning_rate):
+    """Builds and compiles the Hyperspectral CNN model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        n_classes (int): Number of output classes.
+        learning_rate (float): Learning rate for the Adam optimizer.
+
+    Returns:
+        tf.keras.Model: The compiled Keras model.
+    """
+    model = hyperspectral_cnn(in_channels, n_classes)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(),
         metrics=[tf.keras.metrics.SparseCategoricalAccuracy()]
     )
+
     return model

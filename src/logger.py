@@ -1,15 +1,21 @@
 # ===================================================================================
 # Project: Hyperspectral Image Classification (HyperSpectral AI)
 # File: src/logger.py
-# Description: This script sets up a logging configuration for the project. It creates a directory for logs if it doesn't exist and configures the logging format and level. The log file is named with the current date and time.
-#              The logging messages include the timestamp, line number, logger name, log level,
-# and the actual log message.
+# Description: Logging setup script
 # Author: LALAN KUMAR
-# Created: [07-01-2025]
+# Created: [08-01-2025]
 # Updated: [02-05-2025]
 # LAST MODIFIED BY: LALAN KUMAR
 # Version: 1.0.0
 # ===================================================================================
+
+"""This script sets up a logging configuration for the project.
+
+It creates a directory for logs if it doesn't exist and configures the
+logging format and level. The log file is named with the current date and time.
+The logging messages include the timestamp, line number, logger name, log level,
+and the actual log message.
+"""
 
 import logging
 import os
