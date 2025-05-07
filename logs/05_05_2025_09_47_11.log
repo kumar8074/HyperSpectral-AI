@@ -1,0 +1,49 @@
+[ 2025-05-05 09:47:11,175 ] 54 root - INFO - Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:47:11,182 ] 100 root - INFO - Configurations loaded successfully.
+[ 2025-05-05 09:47:11,182 ] 115 root - INFO - [TrainPipeline] Starting the training pipeline...
+[ 2025-05-05 09:47:11,182 ] 118 root - INFO - [TrainPipeline] Step 1: Data Ingestion
+[ 2025-05-05 09:47:11,182 ] 65 root - INFO - [DataIngestion] Starting data ingestion for dataset: Botswana
+[ 2025-05-05 09:47:11,182 ] 67 root - INFO - [DataIngestion] Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:47:11,189 ] 69 root - INFO - [DataIngestion] Loading dataset: Botswana
+[ 2025-05-05 09:47:11,189 ] 83 root - INFO - Searching for .mat files in: DATA/Botswana
+[ 2025-05-05 09:47:11,189 ] 93 root - INFO - Found image file: Botswana.mat
+[ 2025-05-05 09:47:11,189 ] 94 root - INFO - Found label file: Botswana_gt.mat
+[ 2025-05-05 09:47:11,732 ] 108 root - INFO - Found image key: Botswana
+[ 2025-05-05 09:47:11,733 ] 125 root - INFO - Found label key: Botswana_gt
+[ 2025-05-05 09:47:11,733 ] 133 root - INFO - Image shape: (1476, 256, 145)
+[ 2025-05-05 09:47:11,733 ] 134 root - INFO - Label shape: (1476, 256)
+[ 2025-05-05 09:47:11,745 ] 135 root - INFO - Unique labels: {np.uint8(0), np.uint8(1), np.uint8(2), np.uint8(3), np.uint8(4), np.uint8(5), np.uint8(6), np.uint8(7), np.uint8(8), np.uint8(9), np.uint8(10), np.uint8(11), np.uint8(12), np.uint8(13), np.uint8(14)}
+[ 2025-05-05 09:47:11,745 ] 136 root - INFO - Successfully loaded hyperspectral data and labels
+[ 2025-05-05 09:47:11,745 ] 75 root - INFO - [DataIngestion] Images loaded with shape: (1476, 256, 145), dtype: uint16
+[ 2025-05-05 09:47:11,745 ] 76 root - INFO - [DataIngestion] Labels loaded with shape: (1476, 256), dtype: uint8
+[ 2025-05-05 09:47:11,745 ] 77 root - INFO - [DataIngestion] Successfully loaded dataset: Botswana
+[ 2025-05-05 09:47:11,757 ] 128 root - INFO - [TrainPipeline] Step 2: Data Transformation
+[ 2025-05-05 09:47:11,764 ] 121 root - INFO - Model type 'ae' (AutoEncoder) does not require PCA. Skipping PCA.
+[ 2025-05-05 09:47:11,764 ] 224 root - INFO - Starting data transformation process
+[ 2025-05-05 09:47:11,764 ] 129 root - INFO - Skipping PCA fitting as per model type (AutoEncoder).
+[ 2025-05-05 09:47:11,764 ] 206 root - INFO - Transformer object saved at artifacts/preprocessor_ae.pkl.
+[ 2025-05-05 09:47:11,764 ] 153 root - INFO - [DataTransformation] Skipping PCA (AutoEncoder workflow).
+[ 2025-05-05 09:47:11,915 ] 164 root - INFO - [DataTransformation] Patch extraction complete. Patches shape: (3248, 7, 7, 145)
+[ 2025-05-05 09:47:11,915 ] 231 root - INFO - Data transformed: (3248, 7, 7, 145) patches generated
+[ 2025-05-05 09:47:11,915 ] 233 root - INFO - Preparing datasets for training and testing
+[ 2025-05-05 09:47:11,953 ] 346 root - INFO - AutoEncoder Workflow TF datasets successfully created.
+[ 2025-05-05 09:47:11,958 ] 190 root - INFO - Datasets prepared for training and testing
+[ 2025-05-05 09:47:11,958 ] 191 root - INFO - Training Dataset: (TensorSpec(shape=(None, 7, 7, 145), dtype=tf.float32, name=None), (TensorSpec(shape=(None, 7, 7, 145), dtype=tf.float32, name=None), TensorSpec(shape=(None,), dtype=tf.uint8, name=None)))
+[ 2025-05-05 09:47:11,958 ] 192 root - INFO - Testing Dataset: (TensorSpec(shape=(None, 7, 7, 145), dtype=tf.float32, name=None), (TensorSpec(shape=(None, 7, 7, 145), dtype=tf.float32, name=None), TensorSpec(shape=(None,), dtype=tf.uint8, name=None)))
+[ 2025-05-05 09:47:11,958 ] 235 root - INFO - Datasets prepared for training and testing
+[ 2025-05-05 09:47:11,960 ] 138 root - INFO - PCA not applied. Using 145 features.
+[ 2025-05-05 09:47:11,960 ] 144 root - INFO - Found 14 unique classes in the labels.
+[ 2025-05-05 09:47:11,960 ] 151 root - INFO - [TrainPipeline] Step 3: Model Training
+[ 2025-05-05 09:47:11,960 ] 70 root - INFO - ModelTrainer initialized for model: ae
+[ 2025-05-05 09:47:11,960 ] 78 root - INFO - [ModelTrainer] Initiating model building and training...
+[ 2025-05-05 09:47:11,960 ] 82 root - INFO - [ModelTrainer] Using input shape: (7, 7, 145), Num features: 145, Num classes: 14
+[ 2025-05-05 09:47:11,960 ] 95 root - INFO - [ModelTrainer] Building Autoencoder model.
+[ 2025-05-05 09:47:11,978 ] 107 root - INFO - [ModelTrainer] Starting model training...
+[ 2025-05-05 09:47:11,978 ] 416 root - INFO - Starting model training for 5 epochs
+[ 2025-05-05 09:49:44,302 ] 117 root - INFO - [ModelTrainer] Model saved to artifacts/trained_models/ae_model.keras
+[ 2025-05-05 09:49:44,304 ] 123 root - INFO - [ModelTrainer] Training history saved to artifacts/trained_models/ae_model_ae_history.pkl
+[ 2025-05-05 09:49:44,304 ] 129 root - INFO - Final validation loss: 0.656423807144165
+[ 2025-05-05 09:49:44,304 ] 130 root - INFO - Final validation accuracy: None
+[ 2025-05-05 09:49:44,304 ] 132 root - INFO - Model training process finished successfully.
+[ 2025-05-05 09:49:44,304 ] 157 root - INFO - Model training finished. Trained model saved at: artifacts/trained_models/ae_model.keras
+[ 2025-05-05 09:49:44,304 ] 158 root - INFO - ===== Training Pipeline Completed Successfully ====

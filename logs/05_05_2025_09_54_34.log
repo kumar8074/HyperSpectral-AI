@@ -1,0 +1,40 @@
+[ 2025-05-05 09:54:34,652 ] 71 root - INFO - [START] Loading config from /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:54:34,659 ] 105 root - INFO - Config loaded: model=cnn, dataset=Botswana
+[ 2025-05-05 09:54:34,659 ] 106 root - INFO - Model path: artifacts/trained_models/cnn_model.keras
+[ 2025-05-05 09:54:34,659 ] 121 root - INFO - [Predict] Beginning pipeline
+[ 2025-05-05 09:54:34,659 ] 65 root - INFO - [DataIngestion] Starting data ingestion for dataset: Botswana
+[ 2025-05-05 09:54:34,659 ] 67 root - INFO - [DataIngestion] Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:54:34,665 ] 69 root - INFO - [DataIngestion] Loading dataset: Botswana
+[ 2025-05-05 09:54:34,665 ] 83 root - INFO - Searching for .mat files in: DATA/Botswana
+[ 2025-05-05 09:54:34,665 ] 93 root - INFO - Found image file: Botswana.mat
+[ 2025-05-05 09:54:34,665 ] 94 root - INFO - Found label file: Botswana_gt.mat
+[ 2025-05-05 09:54:35,197 ] 108 root - INFO - Found image key: Botswana
+[ 2025-05-05 09:54:35,199 ] 125 root - INFO - Found label key: Botswana_gt
+[ 2025-05-05 09:54:35,199 ] 133 root - INFO - Image shape: (1476, 256, 145)
+[ 2025-05-05 09:54:35,199 ] 134 root - INFO - Label shape: (1476, 256)
+[ 2025-05-05 09:54:35,210 ] 135 root - INFO - Unique labels: {np.uint8(0), np.uint8(1), np.uint8(2), np.uint8(3), np.uint8(4), np.uint8(5), np.uint8(6), np.uint8(7), np.uint8(8), np.uint8(9), np.uint8(10), np.uint8(11), np.uint8(12), np.uint8(13), np.uint8(14)}
+[ 2025-05-05 09:54:35,210 ] 136 root - INFO - Successfully loaded hyperspectral data and labels
+[ 2025-05-05 09:54:35,210 ] 75 root - INFO - [DataIngestion] Images loaded with shape: (1476, 256, 145), dtype: uint16
+[ 2025-05-05 09:54:35,210 ] 76 root - INFO - [DataIngestion] Labels loaded with shape: (1476, 256), dtype: uint8
+[ 2025-05-05 09:54:35,210 ] 77 root - INFO - [DataIngestion] Successfully loaded dataset: Botswana
+[ 2025-05-05 09:54:35,229 ] 128 root - INFO - Loading CNN model
+[ 2025-05-05 09:54:35,510 ] 131 root - INFO - Model 'sequential' loaded
+[ 2025-05-05 09:54:35,510 ] 136 root - INFO - Applying PCA (30 components)
+[ 2025-05-05 09:54:35,511 ] 159 root - INFO - Starting PCA reduction with n_components=30
+[ 2025-05-05 09:54:35,511 ] 161 root - INFO - Input image shape: height=1476, width=256, channels=145
+[ 2025-05-05 09:54:35,586 ] 163 root - INFO - Initializing PCA
+[ 2025-05-05 09:54:35,587 ] 165 root - INFO - Applying PCA transformation
+[ 2025-05-05 09:54:35,828 ] 169 root - INFO - PCA completed: Original bands = 145, Reduced bands = 30
+[ 2025-05-05 09:54:35,828 ] 170 root - INFO - Total explained variance: 99.85%
+[ 2025-05-05 09:54:35,840 ] 143 root - INFO - Normalized data by 36755.27326737018
+[ 2025-05-05 09:54:35,895 ] 153 root - INFO - Extracted 3248 patches
+[ 2025-05-05 09:54:38,109 ] 161 root - INFO - Prediction complete
+[ 2025-05-05 09:54:38,119 ] 170 root - INFO - Metrics -- Acc: 0.2808, F1: 0.2556, Prec: 0.4458, Rec: 0.2808
+[ 2025-05-05 09:54:38,120 ] 179 root - INFO - Saved metrics to artifacts/results/cnn/Botswana_metrics.txt
+[ 2025-05-05 09:54:38,490 ] 186 root - INFO - Saved confusion matrix to artifacts/visualizations/cnn/Botswana_confusion_matrix.png
+[ 2025-05-05 09:54:38,491 ] 460 root - INFO - [Plot] Number of valid pixels: 3248
+[ 2025-05-05 09:54:38,491 ] 461 root - INFO - [Plot] y_true shape: (3248,), y_pred shape: (3248,)
+[ 2025-05-05 09:54:38,491 ] 472 root - INFO - [Plot] y_true_img shape: (1476, 256), y_pred_img shape: (1476, 256)
+[ 2025-05-05 09:54:38,614 ] 487 root - INFO - [Plot] Side-by-side label comparison plot saved to: artifacts/visualizations/cnn/Botswana_spatial.png
+[ 2025-05-05 09:54:38,614 ] 190 root - INFO - Saved spatial comparison to artifacts/visualizations/cnn/Botswana_spatial.png
+[ 2025-05-05 09:54:38,614 ] 192 root - INFO - Pipeline completed in 3.96s

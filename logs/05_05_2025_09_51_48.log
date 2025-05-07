@@ -1,0 +1,33 @@
+[ 2025-05-05 09:51:48,729 ] 71 root - INFO - [START] Loading config from /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:51:48,736 ] 105 root - INFO - Config loaded: model=ae, dataset=Botswana
+[ 2025-05-05 09:51:48,736 ] 106 root - INFO - Model path: artifacts/trained_models/ae_model.keras
+[ 2025-05-05 09:51:48,736 ] 121 root - INFO - [Predict] Beginning pipeline
+[ 2025-05-05 09:51:48,736 ] 65 root - INFO - [DataIngestion] Starting data ingestion for dataset: Botswana
+[ 2025-05-05 09:51:48,736 ] 67 root - INFO - [DataIngestion] Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:51:48,742 ] 69 root - INFO - [DataIngestion] Loading dataset: Botswana
+[ 2025-05-05 09:51:48,742 ] 83 root - INFO - Searching for .mat files in: DATA/Botswana
+[ 2025-05-05 09:51:48,742 ] 93 root - INFO - Found image file: Botswana.mat
+[ 2025-05-05 09:51:48,742 ] 94 root - INFO - Found label file: Botswana_gt.mat
+[ 2025-05-05 09:51:49,284 ] 108 root - INFO - Found image key: Botswana
+[ 2025-05-05 09:51:49,285 ] 125 root - INFO - Found label key: Botswana_gt
+[ 2025-05-05 09:51:49,285 ] 133 root - INFO - Image shape: (1476, 256, 145)
+[ 2025-05-05 09:51:49,285 ] 134 root - INFO - Label shape: (1476, 256)
+[ 2025-05-05 09:51:49,297 ] 135 root - INFO - Unique labels: {np.uint8(0), np.uint8(1), np.uint8(2), np.uint8(3), np.uint8(4), np.uint8(5), np.uint8(6), np.uint8(7), np.uint8(8), np.uint8(9), np.uint8(10), np.uint8(11), np.uint8(12), np.uint8(13), np.uint8(14)}
+[ 2025-05-05 09:51:49,297 ] 136 root - INFO - Successfully loaded hyperspectral data and labels
+[ 2025-05-05 09:51:49,297 ] 75 root - INFO - [DataIngestion] Images loaded with shape: (1476, 256, 145), dtype: uint16
+[ 2025-05-05 09:51:49,297 ] 76 root - INFO - [DataIngestion] Labels loaded with shape: (1476, 256), dtype: uint8
+[ 2025-05-05 09:51:49,297 ] 77 root - INFO - [DataIngestion] Successfully loaded dataset: Botswana
+[ 2025-05-05 09:51:49,308 ] 128 root - INFO - Loading AE model
+[ 2025-05-05 09:51:49,550 ] 131 root - INFO - Model 'hyperspectral_ae' loaded
+[ 2025-05-05 09:51:49,653 ] 143 root - INFO - Normalized data by 45106
+[ 2025-05-05 09:51:49,948 ] 153 root - INFO - Extracted 3248 patches
+[ 2025-05-05 09:51:56,828 ] 161 root - INFO - Prediction complete
+[ 2025-05-05 09:51:56,837 ] 170 root - INFO - Metrics -- Acc: 0.6028, F1: 0.5582, Prec: 0.5369, Rec: 0.6028
+[ 2025-05-05 09:51:56,838 ] 179 root - INFO - Saved metrics to artifacts/results/ae/Botswana_metrics.txt
+[ 2025-05-05 09:51:57,343 ] 186 root - INFO - Saved confusion matrix to artifacts/visualizations/ae/Botswana_confusion_matrix.png
+[ 2025-05-05 09:51:57,344 ] 460 root - INFO - [Plot] Number of valid pixels: 3248
+[ 2025-05-05 09:51:57,344 ] 461 root - INFO - [Plot] y_true shape: (3248,), y_pred shape: (3248,)
+[ 2025-05-05 09:51:57,344 ] 472 root - INFO - [Plot] y_true_img shape: (1476, 256), y_pred_img shape: (1476, 256)
+[ 2025-05-05 09:51:57,496 ] 487 root - INFO - [Plot] Side-by-side label comparison plot saved to: artifacts/visualizations/ae/Botswana_spatial.png
+[ 2025-05-05 09:51:57,496 ] 190 root - INFO - Saved spatial comparison to artifacts/visualizations/ae/Botswana_spatial.png
+[ 2025-05-05 09:51:57,496 ] 192 root - INFO - Pipeline completed in 8.76s

@@ -1,4 +1,7 @@
-DATA/
-logs/
+DATA/Botswana
+DATA/KSC
 artifacts/
 __pycache__/
+templates/
+app.py
+face_verification.py

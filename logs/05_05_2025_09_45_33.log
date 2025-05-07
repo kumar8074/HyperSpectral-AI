@@ -1,0 +1,56 @@
+[ 2025-05-05 09:45:33,384 ] 54 root - INFO - Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:45:33,391 ] 100 root - INFO - Configurations loaded successfully.
+[ 2025-05-05 09:45:33,391 ] 115 root - INFO - [TrainPipeline] Starting the training pipeline...
+[ 2025-05-05 09:45:33,391 ] 118 root - INFO - [TrainPipeline] Step 1: Data Ingestion
+[ 2025-05-05 09:45:33,391 ] 65 root - INFO - [DataIngestion] Starting data ingestion for dataset: Botswana
+[ 2025-05-05 09:45:33,391 ] 67 root - INFO - [DataIngestion] Loading configuration from: /Users/sumi/Desktop/HIC-Final/config/config.yaml
+[ 2025-05-05 09:45:33,397 ] 69 root - INFO - [DataIngestion] Loading dataset: Botswana
+[ 2025-05-05 09:45:33,397 ] 83 root - INFO - Searching for .mat files in: DATA/Botswana
+[ 2025-05-05 09:45:33,397 ] 93 root - INFO - Found image file: Botswana.mat
+[ 2025-05-05 09:45:33,397 ] 94 root - INFO - Found label file: Botswana_gt.mat
+[ 2025-05-05 09:45:33,937 ] 108 root - INFO - Found image key: Botswana
+[ 2025-05-05 09:45:33,939 ] 125 root - INFO - Found label key: Botswana_gt
+[ 2025-05-05 09:45:33,939 ] 133 root - INFO - Image shape: (1476, 256, 145)
+[ 2025-05-05 09:45:33,939 ] 134 root - INFO - Label shape: (1476, 256)
+[ 2025-05-05 09:45:33,950 ] 135 root - INFO - Unique labels: {np.uint8(0), np.uint8(1), np.uint8(2), np.uint8(3), np.uint8(4), np.uint8(5), np.uint8(6), np.uint8(7), np.uint8(8), np.uint8(9), np.uint8(10), np.uint8(11), np.uint8(12), np.uint8(13), np.uint8(14)}
+[ 2025-05-05 09:45:33,950 ] 136 root - INFO - Successfully loaded hyperspectral data and labels
+[ 2025-05-05 09:45:33,950 ] 75 root - INFO - [DataIngestion] Images loaded with shape: (1476, 256, 145), dtype: uint16
+[ 2025-05-05 09:45:33,950 ] 76 root - INFO - [DataIngestion] Labels loaded with shape: (1476, 256), dtype: uint8
+[ 2025-05-05 09:45:33,950 ] 77 root - INFO - [DataIngestion] Successfully loaded dataset: Botswana
+[ 2025-05-05 09:45:33,983 ] 128 root - INFO - [TrainPipeline] Step 2: Data Transformation
+[ 2025-05-05 09:45:33,991 ] 119 root - INFO - Model type 'cnn' requires PCA. PCA will be applied.
+[ 2025-05-05 09:45:33,991 ] 224 root - INFO - Starting data transformation process
+[ 2025-05-05 09:45:33,991 ] 132 root - INFO - Applying PCA as per model type.
+[ 2025-05-05 09:45:34,299 ] 136 root - INFO - PCA fitted on training data successfully.
+[ 2025-05-05 09:45:34,303 ] 206 root - INFO - Transformer object saved at artifacts/preprocessor_cnn.pkl.
+[ 2025-05-05 09:45:34,303 ] 150 root - INFO - [DataTransformation] Applying PCA to input images.
+[ 2025-05-05 09:45:34,303 ] 159 root - INFO - Starting PCA reduction with n_components=30
+[ 2025-05-05 09:45:34,303 ] 161 root - INFO - Input image shape: height=1476, width=256, channels=145
+[ 2025-05-05 09:45:34,377 ] 163 root - INFO - Initializing PCA
+[ 2025-05-05 09:45:34,378 ] 165 root - INFO - Applying PCA transformation
+[ 2025-05-05 09:45:34,581 ] 169 root - INFO - PCA completed: Original bands = 145, Reduced bands = 30
+[ 2025-05-05 09:45:34,581 ] 170 root - INFO - Total explained variance: 99.85%
+[ 2025-05-05 09:45:34,691 ] 164 root - INFO - [DataTransformation] Patch extraction complete. Patches shape: (3248, 7, 7, 30)
+[ 2025-05-05 09:45:34,692 ] 231 root - INFO - Data transformed: (3248, 7, 7, 30) patches generated
+[ 2025-05-05 09:45:34,692 ] 233 root - INFO - Preparing datasets for training and testing
+[ 2025-05-05 09:45:34,731 ] 350 root - INFO - CNN Workflow TF datasets successfully created.
+[ 2025-05-05 09:45:34,736 ] 190 root - INFO - Datasets prepared for training and testing
+[ 2025-05-05 09:45:34,736 ] 191 root - INFO - Training Dataset: (TensorSpec(shape=(None, 7, 7, 30), dtype=tf.float32, name=None), TensorSpec(shape=(None,), dtype=tf.uint8, name=None))
+[ 2025-05-05 09:45:34,736 ] 192 root - INFO - Testing Dataset: (TensorSpec(shape=(None, 7, 7, 30), dtype=tf.float32, name=None), TensorSpec(shape=(None,), dtype=tf.uint8, name=None))
+[ 2025-05-05 09:45:34,736 ] 235 root - INFO - Datasets prepared for training and testing
+[ 2025-05-05 09:45:34,736 ] 135 root - INFO - PCA applied. Using 30 features.
+[ 2025-05-05 09:45:34,737 ] 144 root - INFO - Found 14 unique classes in the labels.
+[ 2025-05-05 09:45:34,737 ] 151 root - INFO - [TrainPipeline] Step 3: Model Training
+[ 2025-05-05 09:45:34,737 ] 70 root - INFO - ModelTrainer initialized for model: cnn
+[ 2025-05-05 09:45:34,737 ] 78 root - INFO - [ModelTrainer] Initiating model building and training...
+[ 2025-05-05 09:45:34,737 ] 82 root - INFO - [ModelTrainer] Using input shape: (7, 7, 30), Num features: 30, Num classes: 14
+[ 2025-05-05 09:45:34,737 ] 87 root - INFO - [ModelTrainer] Building CNN model.
+[ 2025-05-05 09:45:34,862 ] 107 root - INFO - [ModelTrainer] Starting model training...
+[ 2025-05-05 09:45:34,863 ] 416 root - INFO - Starting model training for 5 epochs
+[ 2025-05-05 09:46:52,541 ] 117 root - INFO - [ModelTrainer] Model saved to artifacts/trained_models/cnn_model.keras
+[ 2025-05-05 09:46:52,543 ] 123 root - INFO - [ModelTrainer] Training history saved to artifacts/trained_models/cnn_model_cnn_history.pkl
+[ 2025-05-05 09:46:52,543 ] 129 root - INFO - Final validation loss: 0.06104651466012001
+[ 2025-05-05 09:46:52,543 ] 130 root - INFO - Final validation accuracy: None
+[ 2025-05-05 09:46:52,543 ] 132 root - INFO - Model training process finished successfully.
+[ 2025-05-05 09:46:52,543 ] 157 root - INFO - Model training finished. Trained model saved at: artifacts/trained_models/cnn_model.keras
+[ 2025-05-05 09:46:52,543 ] 158 root - INFO - ===== Training Pipeline Completed Successfully ====
