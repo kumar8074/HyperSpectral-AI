@@ -12,6 +12,23 @@ Hyperspectral imaging captures electromagnetic radiation across numerous contigu
 - Environmental research
 - Remote sensing applications
 
+
+##  Example Images
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/9c01af1c-20b0-427a-ae77-ad7478259683" width="300" height="600"/><br/>
+      <b>Pavia Centre Original</b>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/4f3bdc6e-cdaf-48b3-98a4-a7a19c764134" width="300" height="600"/><br/>
+      <b>Pavia Centre Spectral</b>
+    </td>
+  </tr>
+</table>
+
+
 ## 🏗️ Project Architecture
 
 ### Key Components
