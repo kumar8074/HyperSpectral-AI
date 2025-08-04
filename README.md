@@ -111,27 +111,27 @@ python -m src.pipeline.predict_pipeline
 ## 📊 Supported Datasets
 - **Botswana Hyperspectral Dataset**
   - Download Dataset: ![Botswana]('http://www.ehu.es/ccwintco/uploads/7/72/Botswana.mat')
-  - Download Ground Truth: [Botswana_gt] ('http://www.ehu.es/ccwintco/uploads/5/58/Botswana_gt.mat')
+  - Download Ground Truth: ![Botswana_gt]('http://www.ehu.es/ccwintco/uploads/5/58/Botswana_gt.mat')
   - Geographic region: Southern Africa
   - Spectral characteristics: High-resolution land cover classification
 - **Kennedy Space Center (KSC) Hyperspectral Dataset**
-  - Download Dataset: [KSC] ('http://www.ehu.es/ccwintco/uploads/2/26/KSC.mat')
-  - Download Ground Truth: [KSC_gt] ('http://www.ehu.es/ccwintco/uploads/a/a6/KSC_gt.mat')
+  - Download Dataset: ![KSC]('http://www.ehu.es/ccwintco/uploads/2/26/KSC.mat')
+  - Download Ground Truth: ![KSC_gt]('http://www.ehu.es/ccwintco/uploads/a/a6/KSC_gt.mat')
   - Geographic region: Florida, United States
   - Applications: Coastal and environmental monitoring
 - **Pavia University (PaviaU) Dataset**
-  - Download Dataset: [PaviaU] ('http://www.ehu.eus/ccwintco/uploads/e/ee/PaviaU.mat')
-  - Download Ground Truth: [PaviaU_gt] ('http://www.ehu.eus/ccwintco/uploads/5/50/PaviaU_gt.mat')
+  - Download Dataset: ![PaviaU]('http://www.ehu.eus/ccwintco/uploads/e/ee/PaviaU.mat')
+  - Download Ground Truth: ![PaviaU_gt]('http://www.ehu.eus/ccwintco/uploads/5/50/PaviaU_gt.mat')
   - Geographic region: Northern Italy
   - Applications: Urban area classification
 - **Pavia Centre (PaviaC) Dataset**
-  - Download Dataset: [PaviaC] ('http://www.ehu.eus/ccwintco/uploads/e/e3/Pavia.mat')
-  - Download Ground Truth: [PaviaC_gt] ('http://www.ehu.eus/ccwintco/uploads/5/53/Pavia_gt.mat')
+  - Download Dataset: ![PaviaC]('http://www.ehu.eus/ccwintco/uploads/e/e3/Pavia.mat')
+  - Download Ground Truth: ![PaviaC_gt]('http://www.ehu.eus/ccwintco/uploads/5/53/Pavia_gt.mat')
   - Geographic region: Pavia city center, Italy
   - Applications: Urban material and structure identification
 - **Indian Pines Dataset**
-  - Download Dataset: [IndianPines] ('http://www.ehu.eus/ccwintco/uploads/6/67/Indian_pines_corrected.mat')
-  - Download Ground Truth: [IndianPines_gt] ('http://www.ehu.eus/ccwintco/uploads/c/c4/Indian_pines_gt.mat')
+  - Download Dataset: ![IndianPines]('http://www.ehu.eus/ccwintco/uploads/6/67/Indian_pines_corrected.mat')
+  - Download Ground Truth: ![IndianPines_gt]('http://www.ehu.eus/ccwintco/uploads/c/c4/Indian_pines_gt.mat')
   - Geographic region: Northwestern Indiana, United States
   - Applications: Agricultural area classification
 
