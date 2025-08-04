@@ -110,7 +110,7 @@ python -m src.pipeline.predict_pipeline
 
 ## 📊 Supported Datasets
 - **Botswana Hyperspectral Dataset**
-  - Download Dataset: [Botswana] ('http://www.ehu.es/ccwintco/uploads/7/72/Botswana.mat')
+  - Download Dataset: (Botswana) ['http://www.ehu.es/ccwintco/uploads/7/72/Botswana.mat']
   - Download Ground Truth: [Botswana_gt] ('http://www.ehu.es/ccwintco/uploads/5/58/Botswana_gt.mat')
   - Geographic region: Southern Africa
   - Spectral characteristics: High-resolution land cover classification
